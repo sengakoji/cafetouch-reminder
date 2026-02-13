@@ -1380,11 +1380,23 @@
             return `${h}:${m}:${s}`;
         }
 
-        async function enableNotifications() {
-            if (!("Notification" in window)) return alert('非対応ブラウザです');
-            const permission = await Notification.requestPermission();
-            updateNotificationStatus();
-            if (permission === 'granted') showNotification('通知が有効になりました！');
+        function enableNotifications() {
+            if (!("Notification" in window)) {
+                alert('このブラウザは通知に対応していません。');
+                return;
+            }
+            
+            // ユーザー操作の直後に直接リクエストを実行
+            Notification.requestPermission().then(permission => {
+                updateNotificationStatus();
+                if (permission === 'granted') {
+                    showNotification('通知が有効になりました！', 'これからカフェタッチの時間をお知らせします♪');
+                } else if (permission === 'denied') {
+                    alert('通知がブロックされています。ブラウザの設定（URL横の鍵マークなど）から通知を許可してください。');
+                }
+            }).catch(err => {
+                console.error('Notification permission error:', err);
+            });
         }
 
         function toggleMute() {
