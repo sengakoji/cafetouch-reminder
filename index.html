@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" id="themeColorMeta" content="#06BBFA">
-    <link rel="manifest" href="site.webmanifest" />
+    <link rel="manifest" href="./site.webmanifest" />
     <!-- Google Fonts: Roboto の読み込み -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -472,7 +472,7 @@
             font-weight: 500;
             transition: background-color 0.2s, transform 0.1s ease-out, box-shadow 0.1s ease-out;
             user-select: none;
-            box-shadow: 1px 2px 1px 2px rgba(0, 0, 0, 0.08);
+            box-shadow: 1px 2px 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .toggle-label:hover {
@@ -858,13 +858,19 @@
                     <div style="font-size: 14px; line-height: 1.5;">
                         <p>ブルーアーカイブのカフェタッチのタイミングを通知するリマインダーです。</p>
                         <p> 前回行ったカフェタッチの時刻を設定したり、カフェタッチ完了ボタンを押すとタイマーが開始されます。</p>
-                        <p><strong>自動更新</strong><br>
+                        
+                        <!-- Android用のお詫び文 -->
+                        <div id="androidInstructionNotice" style="display: none; font-weight: 600; margin: 12px 0; font-size: 13px; line-height: 1.4;">
+                            <span style="color: #c0152f;">Android</span>版では技術的限界で機能が制限されています。申し訳ありません。
+                        </div>
+
+                        <p id="instructionAutoUpdate"><strong>自動更新</strong><br>
                         通知後にカフェタッチ完了ボタンを押さずに放置すると、<br>「カフェタッチにかかる時間」+「カフェタッチのクールタイム」が<br>次回の通知タイミングに設定されます。</p>
         
-                        <p><strong>手動更新</strong><br>
+                        <p id="instructionManualUpdate"><strong>手動更新</strong><br>
                         カフェタッチが予定時刻より遅れた場合や「カフェタッチ完了」ボタンを押した瞬間から、最短のクールタイムを計りたい場合は「カフェタッチ完了」ボタンを押してください。<br>クールタイムのみをカウントするタイマーが設定されます。</p>
         
-                        <p style="font-size: 13px; opacity: 0.8; margin-top: 12px;">
+                        <p id="instructionChangeSettings" style="font-size: 13px; opacity: 0.8; margin-top: 12px;">
                             操作時間やクールタイムは設定画面から変更可能です。
                         </p>
                     </div>
@@ -908,6 +914,8 @@
         let textColor = 'white';
         let isInitialSetupDone = false;
         
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
         let retroactiveBaseTime = null;
 
         let worker = null;
@@ -1380,23 +1388,26 @@
             return `${h}:${m}:${s}`;
         }
 
-        function enableNotifications() {
+        async function enableNotifications() {
             if (!("Notification" in window)) {
                 alert('このブラウザは通知に対応していません。');
                 return;
             }
             
-            // ユーザー操作の直後に直接リクエストを実行
-            Notification.requestPermission().then(permission => {
+            try {
+                if ('serviceWorker' in navigator) {
+                    await navigator.serviceWorker.register('sw.js');
+                }
+                const permission = await Notification.requestPermission();
                 updateNotificationStatus();
                 if (permission === 'granted') {
                     showNotification('通知が有効になりました！', 'これからカフェタッチの時間をお知らせします♪');
                 } else if (permission === 'denied') {
                     alert('通知がブロックされています。ブラウザの設定（URL横の鍵マークなど）から通知を許可してください。');
                 }
-            }).catch(err => {
-                console.error('Notification permission error:', err);
-            });
+            } catch (err) {
+                console.error('Notification error:', err);
+            }
         }
 
         function toggleMute() {
@@ -1552,11 +1563,42 @@
 
         function showNotification(title, body, isTest = false) {
             if (muteNotifications && !isTest) return;
-            if (Notification.permission === 'granted') {
-                const options = {
-                    body: body, tag: 'cafe-touch-notification', renotify: true,
-                    silent: !notificationSound, requireInteraction: true
-                };
+            if (Notification.permission !== 'granted') return;
+
+            const options = {
+                body: body, 
+                tag: 'cafe-touch-notification', 
+                renotify: true,
+                // Androidでは音なしにするとポップアップ自体が消えるため、モバイルなら常にfalse、PCなら設定に従う
+                silent: isMobile ? false : !notificationSound, 
+                requireInteraction: true
+            };
+
+            if (isMobile) {
+                // Android: Service Worker経由
+                options.icon = 'favicon-96x96.png';
+                options.badge = 'favicon-96x96.png';
+                options.vibrate = (notificationSound) ? [200, 100, 200] : [];
+                
+                navigator.serviceWorker.getRegistration().then(reg => {
+                    if (reg) {
+                        reg.showNotification(title, options);
+                    } else {
+                        // SWがない場合のフォールバック（PC版と同じロジック）
+                        try {
+                            const n = new Notification(title, options);
+                            n.onclick = (e) => { e.preventDefault(); window.focus(); };
+                        } catch (e) {
+                            options.requireInteraction = false;
+                            const n = new Notification(title, options);
+                            n.onclick = (e) => { e.preventDefault(); window.focus(); };
+                        }
+                    }
+                }).catch(err => {
+                    console.error('SW Notification Error:', err);
+                });
+            } else {
+                // PC: 元の index.html と全く同じロジック
                 try {
                     const n = new Notification(title, options);
                     n.onclick = (e) => { e.preventDefault(); window.focus(); };
@@ -1627,6 +1669,64 @@
 
         window.addEventListener('load', () => {
             loadSettings();
+            
+            // モバイル環境では無意味・機能しない設定を隠し、自動更新をオフにする
+            if (isMobile) {
+                // 自動更新を強制的にオフにする（モバイルではバックグラウンド動作が不安定なため）
+                autoUpdateNext = false;
+                const autoUpdateInput = document.getElementById('autoUpdateNextInput');
+                if (autoUpdateInput) autoUpdateInput.checked = false;
+                saveSettings();
+
+                const hideIds = [
+                    'preventSleepInput',      // 省電力防止(モバイルでは無効)
+                    'notificationSoundInput', // 通知音(OS設定が優先されるため)
+                    'autoUpdateNextInput',    // 自動更新(不安定なためオフ固定)
+                    'actionTimeInput',        // 操作時間(自動更新がないなら不要)
+                    'initialActionTime'       // 初期設定画面の操作時間
+                ];
+
+                hideIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        const group = el.closest('.checkbox-group') || el.closest('.form-group');
+                        if (group) {
+                            group.style.display = 'none';
+                            const helpText = group.nextElementSibling;
+                            if (helpText && helpText.classList.contains('help-text')) helpText.style.display = 'none';
+                        }
+                    }
+                });
+
+                // 操作説明の整理
+                const notice = document.getElementById('androidInstructionNotice');
+                if (notice) notice.style.display = 'block';
+                ['instructionAutoUpdate', 'instructionManualUpdate', 'instructionChangeSettings'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+
+                // アプリ版(Standalone)ならタイトル表示設定も隠す
+                if (isStandalone) {
+                    const titleTimerInput = document.getElementById('showTitleTimerInput');
+                    if (titleTimerInput) {
+                        const group = titleTimerInput.closest('.checkbox-group');
+                        if (group) {
+                            group.style.display = 'none';
+                            const helpText = group.nextElementSibling;
+                            if (helpText && helpText.classList.contains('help-text')) helpText.style.display = 'none';
+                        }
+                    }
+                }
+            }
+
+            // Service Workerの自動登録
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js').then(() => {
+                    console.log('Service Worker Registered');
+                    updateNotificationStatus();
+                }).catch(err => console.error('SW Registration failed:', err));
+            }
             document.getElementById('initialSetupCard').addEventListener('click', (e) => {
                 if (e.target.id === 'initialSetupConfirmBtn') {
                     const morningInput = document.getElementById('initialMorningTime');
