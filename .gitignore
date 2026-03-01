@@ -6,6 +6,7 @@ node_modules/
 dist/
 .dev.vars
 .env
+.env.test
 
 # Logs
 npm-debug.log*

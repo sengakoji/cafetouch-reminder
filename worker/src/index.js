@@ -290,6 +290,28 @@ export default {
       return new Response("Cafe Push Worker is running.", { headers: corsHeaders });
     }
 
+    // GET /debug/status?subId=XXX&token=YYY: テスト用KV状態確認エンドポイント
+    if (request.method === "GET" && url.pathname === "/debug/status") {
+      const token = url.searchParams.get("token");
+      if (!env.PLAYWRIGHT_DEBUG_TOKEN || token !== env.PLAYWRIGHT_DEBUG_TOKEN) {
+        return new Response("Forbidden", { status: 403, headers: corsHeaders });
+      }
+      const subId = url.searchParams.get("subId");
+      if (!subId) {
+        return new Response("Missing subId", { status: 400, headers: corsHeaders });
+      }
+      const activeSchedule = await env.PUSH_STATUS.get(`active_schedule_${subId}`);
+      const stopped = await env.PUSH_STATUS.get(`stop_${subId}`);
+      return new Response(JSON.stringify({
+        subId,
+        activeScheduleId: activeSchedule,
+        isStopped: stopped === "true",
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // POST /stop: 通知の停止
     if (request.method === "POST" && url.pathname === "/stop") {
       try {

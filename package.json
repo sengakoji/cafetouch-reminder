@@ -1,0 +1,25 @@
+{
+  "name": "cafetouch-reminder",
+  "version": "1.0.0",
+  "description": "<img src=\"screenshot.jpg\" width=\"50%\">",
+  "main": "sw.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sengakoji/cafetouch-reminder.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/sengakoji/cafetouch-reminder/issues"
+  },
+  "homepage": "https://github.com/sengakoji/cafetouch-reminder#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "dotenv": "^17.3.1"
+  }
+}
