@@ -426,10 +426,17 @@ export default {
         if (autoUpdate && cooldownMinutes && typeof actionTimeSeconds === 'number' && fixedTimes) {
           // 現在時刻（通知が送られた直後）
           const now = new Date();
-          // リセット時刻を考慮した次のターゲット時刻を計算
-          const nextDate = getNextTargetDate(now, fixedTimes, cooldownMinutes);
-          // 操作時間を加味した遅延秒数
-          const nextDelaySeconds = Math.floor((nextDate.getTime() - now.getTime()) / 1000) + actionTimeSeconds;
+
+          // ★ドリフト防止: advanceSecondsぶんだけ通知が早く届いた場合、
+          // 「本来の通知予定時刻 = now + advanceSeconds」を基準として次を計算する
+          // これにより、毎サイクル「本来の予定時刻からadvanceSeconds前」をキープし続けられる
+          const advanceSeconds = typeof message.body.advanceSeconds === 'number' ? message.body.advanceSeconds : 0;
+          const idealNow = new Date(now.getTime() + advanceSeconds * 1000);
+
+          // リセット時刻を考慮した次のターゲット時刻を計算（idealNowを基準にする）
+          const nextDate = getNextTargetDate(idealNow, fixedTimes, cooldownMinutes);
+          // 操作時間を加味した遅延秒数、前倒し分を差し引く
+          const nextDelaySeconds = Math.floor((nextDate.getTime() - now.getTime()) / 1000) + actionTimeSeconds - advanceSeconds;
 
           // 新しいスケジュールIDを生成して更新（これ以降、既存の別スレッドのQueueはすべて破棄される）
           const nextScheduleId = Date.now().toString();
@@ -442,12 +449,13 @@ export default {
               autoUpdate: true,
               cooldownMinutes,
               actionTimeSeconds,
+              advanceSeconds,
               fixedTimes,
               scheduleId: nextScheduleId
             },
             { delaySeconds: Math.max(0, nextDelaySeconds) }
           );
-          console.log(`Auto-update: next notification scheduled at ${nextDate.toISOString()} (Delay: ${nextDelaySeconds}s)`);
+          console.log(`Auto-update: next notification scheduled at ${nextDate.toISOString()} (Delay: ${nextDelaySeconds}s, advance: ${advanceSeconds}s)`);
         }
 
         message.ack();

@@ -1058,6 +1058,13 @@
                     <div class="help-text">カフェタッチの操作にかかる時間（デフォルト: 30秒）<br>通知からこの時間が経過すると自動で次の予定がセットされます</div>
                 </div>
 
+                <div class="form-group show-only-mobile">
+                    <label>通知を早める時間（秒）</label>
+                    <input type="number" id="notificationAdvanceInput" value="10" min="0" max="120"
+                        oninput="saveSettingsAuto()" style="width: 120px;">
+                    <div class="help-text">通信環境による遅延を補正するため、予定時刻の何秒前に通知を送るか設定できます（デフォルト: 10秒）</div>
+                </div>
+
                 <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
 
                 <div class="form-group">
@@ -1137,6 +1144,7 @@
         let fixedTimes = [];
         let cooldownMinutes = 180;
         let actionTimeSeconds = 30;
+        let notificationAdvanceSeconds = 10;
 
         // --- Web Push Settings ---
         const VAPID_PUBLIC_KEY = 'BDhsA4_i9Dd6zh0p0QoGCL-tyXG1rTbmqz_1-l3KE0qtViJ01pS25EDZeaBGn0jnDR2YLTezFHX8qFcEPBNI4Lg';
@@ -1170,10 +1178,12 @@
         async function syncScheduleToWorker(targetDate) {
             if (!targetDate) return;
             const now = new Date().getTime();
-            const delaySeconds = Math.floor((targetDate.getTime() - now) / 1000);
+            // 前倒し秒を適用：予定時刻の advanceSeconds 前に通知が届くように delaySeconds を短縮する
+            const rawDelay = Math.floor((targetDate.getTime() - now) / 1000);
+            const delaySeconds = Math.max(0, rawDelay - notificationAdvanceSeconds);
 
             // 過去の場合は不要
-            if (delaySeconds <= 0) return;
+            if (rawDelay <= 0) return;
 
             const subStr = localStorage.getItem('pushSubscription');
             if (!subStr) return;
@@ -1198,10 +1208,11 @@
                         autoUpdate: autoUpdateNext,
                         cooldownMinutes: cooldownMinutes,
                         actionTimeSeconds: actionTimeSeconds,
+                        advanceSeconds: notificationAdvanceSeconds,
                         fixedTimes: fixedTimes
                     })
                 });
-                console.log('Worker Sync: Scheduled in', delaySeconds, 'seconds (autoUpdate:', autoUpdateNext, ')');
+                console.log('Worker Sync: Scheduled in', delaySeconds, 'seconds (autoUpdate:', autoUpdateNext, ', advance:', notificationAdvanceSeconds, ')');
             } catch (e) {
                 console.error('Worker Sync Failed:', e);
             }
@@ -1328,6 +1339,7 @@
                 textColor = settings.textColor || 'white';
                 cooldownMinutes = settings.cooldownMinutes || 180;
                 actionTimeSeconds = settings.actionTimeSeconds || 30;
+                notificationAdvanceSeconds = settings.notificationAdvanceSeconds !== undefined ? settings.notificationAdvanceSeconds : 10;
                 notifyOnComplete = settings.notifyOnComplete || false;
                 notificationSound = settings.notificationSound !== undefined ? settings.notificationSound : true;
                 requireInteraction = settings.requireInteraction !== undefined ? settings.requireInteraction : false;
@@ -1404,6 +1416,8 @@
             document.getElementById('cooldownInput').value = cooldownMinutes;
             document.getElementById('actionTimeInput').value = actionTimeSeconds;
             document.getElementById('initialActionTime').value = actionTimeSeconds;
+            const advanceInput = document.getElementById('notificationAdvanceInput');
+            if (advanceInput) advanceInput.value = notificationAdvanceSeconds;
             document.getElementById('notifyOnCompleteInput').checked = notifyOnComplete;
             document.getElementById('notificationSoundInput').checked = notificationSound;
             document.getElementById('requireInteractionInput').checked = requireInteraction;
@@ -1440,6 +1454,7 @@
 
             cooldownMinutes = parseInt(document.getElementById('cooldownInput').value) || 180;
             actionTimeSeconds = parseInt(document.getElementById('actionTimeInput').value) || 0;
+            notificationAdvanceSeconds = parseInt(document.getElementById('notificationAdvanceInput')?.value) || 0;
             notifyOnComplete = document.getElementById('notifyOnCompleteInput').checked;
             notificationSound = document.getElementById('notificationSoundInput').checked;
             requireInteraction = document.getElementById('requireInteractionInput').checked;
@@ -1456,7 +1471,7 @@
             primaryColor = document.getElementById('colorPicker').value;
 
             const settings = {
-                fixedTimes, cooldownMinutes, actionTimeSeconds, notifyOnComplete, notificationSound,
+                fixedTimes, cooldownMinutes, actionTimeSeconds, notificationAdvanceSeconds, notifyOnComplete, notificationSound,
                 requireInteraction, preventFocusOnNotificationClick,
                 preventSleep, showTitleTimer, autoUpdateNext, muteNotifications, themeMode,
                 nextNotificationTime: nextNotificationTime ? nextNotificationTime.toISOString() : null,
