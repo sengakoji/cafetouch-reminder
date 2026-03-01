@@ -1,0 +1,2343 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カフェタッチリマインダー(PC向け)</title>
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="カフェタッチ" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" id="themeColorMeta" content="#06BBFA">
+    <link rel="manifest" href="site.webmanifest" />
+    <!-- Google Fonts: Roboto の読み込み -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+        // 即座に色とテーマを適用 & 通知状態をチェック（チラつき防止）
+        (function () {
+            const saved = localStorage.getItem('cafeTouchSettings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+
+                const color = settings.primaryColor || '#06BBFA';
+                const textColor = settings.textColor || 'white';
+                document.documentElement.style.setProperty('--initial-color', color);
+                document.documentElement.style.setProperty('--initial-text-color', textColor);
+
+                const themeMeta = document.getElementById('themeColorMeta');
+                if (themeMeta) themeMeta.setAttribute('content', color);
+
+                if (settings.themeMode === 'dark') {
+                    document.documentElement.classList.add('theme-dark');
+                } else if (settings.themeMode === 'light') {
+                    document.documentElement.classList.add('theme-light');
+                }
+            } else {
+                document.documentElement.style.setProperty('--initial-color', '#06BBFA');
+                document.documentElement.style.setProperty('--initial-text-color', 'white');
+            }
+
+            if (("Notification" in window) && (Notification.permission === 'granted')) {
+                document.documentElement.style.setProperty('--notification-request-display', 'none');
+            } else {
+                document.documentElement.style.setProperty('--notification-request-display', 'block');
+            }
+        })();
+    </script>
+    <style>
+        :root {
+            --color-cream-50: rgba(252, 252, 249, 1);
+            --color-cream-100: rgba(255, 255, 253, 1);
+            --color-gray-200: rgba(245, 245, 245, 1);
+            --color-gray-300: rgba(167, 169, 169, 1);
+            --color-slate-500: rgba(98, 108, 113, 1);
+            --color-charcoal-700: rgba(31, 33, 33, 1);
+            --color-charcoal-800: rgba(38, 40, 40, 1);
+            --color-teal-300: rgba(50, 184, 198, 1);
+            --color-teal-500: rgba(33, 128, 141, 1);
+            --color-teal-600: rgba(29, 116, 128, 1);
+            --color-brown-600-rgb: 94, 82, 64;
+            --color-teal-500-rgb: 33, 128, 141;
+
+            /* デフォルト（ライト）変数 */
+            --color-background: var(--color-cream-50);
+            --color-surface: var(--color-cream-100);
+            --color-text: var(--color-charcoal-700);
+            --color-text-secondary: var(--color-slate-500);
+            --color-border: rgba(var(--color-brown-600-rgb), 0.2);
+            --color-control-bg: rgba(var(--color-brown-600-rgb), 0.08);
+            --theme-scheme: light;
+        }
+
+        /* システム設定がダーク、かつライトモード強制でない場合 */
+        @media (prefers-color-scheme: dark) {
+            :root:not(.theme-light) {
+                --color-background: var(--color-charcoal-700);
+                --color-surface: var(--color-charcoal-800);
+                --color-text: var(--color-gray-200);
+                --color-text-secondary: var(--color-gray-300);
+                --color-border: rgba(119, 124, 124, 0.3);
+                --color-control-bg: rgba(119, 124, 124, 0.15);
+                --theme-scheme: dark;
+            }
+        }
+
+        /* ダークモード強制 */
+        :root.theme-dark {
+            --color-background: var(--color-charcoal-700);
+            --color-surface: var(--color-charcoal-800);
+            --color-text: var(--color-gray-200);
+            --color-text-secondary: var(--color-gray-300);
+            --color-border: rgba(119, 124, 124, 0.3);
+            --color-control-bg: rgba(119, 124, 124, 0.15);
+            --theme-scheme: dark;
+        }
+
+        body {
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: var(--color-background);
+            color: var(--color-text);
+            min-height: 100vh;
+            transition: none;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--initial-color, #06BBFA);
+            margin-bottom: 30px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: min(1.8rem, 6vw);
+        }
+
+        .card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0px 20px 40px 0px rgba(0, 0, 0, 0.05);
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .timer-container {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .timer {
+            grid-column: 2;
+            font-size: 48px;
+            font-weight: 500;
+            color: var(--initial-color, #06BBFA);
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            font-variant-numeric: tabular-nums;
+            width: 200px;
+            text-align: center;
+            transition: color 0.3s ease, opacity 0.3s ease;
+        }
+
+        .timer.placeholder {
+            color: var(--color-text-secondary) !important;
+            opacity: 0.35;
+        }
+
+        .control-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            color: var(--initial-color, #06BBFA);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            outline: none;
+        }
+
+        .control-btn:hover {
+            background: var(--color-control-bg);
+            border-color: var(--color-border);
+            transform: translateY(-1px);
+        }
+
+        .hover-warning:hover {
+            background: rgba(227, 74, 69, 0.1) !important;
+            border-color: rgba(227, 74, 69, 0.2) !important;
+            color: #e34a45 !important;
+            transform: translateY(-1px);
+        }
+
+        .hover-pause:hover {
+            background: rgba(255, 193, 7, 0.1) !important;
+            border-color: rgba(255, 193, 7, 0.2) !important;
+            color: #FFC107 !important;
+            transform: translateY(-1px);
+        }
+
+        .control-btn:active {
+            transform: scale(0.9) translateY(0);
+        }
+
+        .reset-btn {
+            grid-column: 1;
+            justify-self: end;
+            margin-right: 12px;
+            color: var(--color-text-secondary);
+            opacity: 0.6;
+        }
+
+        .reset-btn:hover {
+            opacity: 1;
+        }
+
+        .mute-btn {
+            grid-column: 3;
+            justify-self: start;
+            margin-left: 12px;
+        }
+
+        .mute-btn.muted {
+            color: #e34a45;
+            opacity: 0.7;
+        }
+
+        .mute-btn.muted:hover {
+            background: rgba(227, 74, 69, 0.1) !important;
+            border-color: rgba(227, 74, 69, 0.2) !important;
+            color: #e34a45 !important;
+            opacity: 1;
+        }
+
+        .next-time {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            font-size: 15px;
+            color: var(--color-text-secondary);
+            margin: 16px 0 4px 0;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+            width: 100%;
+        }
+
+        .info-part {
+            width: 150px;
+            transition: opacity 0.3s ease;
+        }
+
+        .info-part.placeholder {
+            opacity: 0.35;
+        }
+
+        .info-left {
+            text-align: right;
+        }
+
+        .info-right {
+            text-align: left;
+        }
+
+        .info-center {
+            width: 160px;
+            text-align: center;
+            font-weight: 500;
+            color: var(--initial-color, #06BBFA);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s ease-out, opacity 0.2s, box-shadow 0.1s ease-out;
+            margin-bottom: 12px;
+            outline: none;
+            user-select: none;
+            box-shadow: 1px 2px 1px 2px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: visible;
+        }
+
+        .btn:active {
+            transform: scale(0.99);
+            box-shadow: 1px 2px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: var(--initial-color, #06BBFA);
+            color: var(--initial-text-color, white);
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        .auto-update-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.45);
+            width: 0%;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+
+        .btn-emphasis::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 8px;
+            box-shadow: 0 0 0 0 var(--initial-color, #06BBFA);
+            animation: pulse-ring 1.5s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                box-shadow: 0 0 0 0 rgba(var(--color-teal-500-rgb), 0.7);
+            }
+
+            100% {
+                box-shadow: 0 0 0 9px rgba(var(--color-teal-500-rgb), 0);
+            }
+        }
+
+        .btn-secondary {
+            background: var(--color-control-bg);
+            color: var(--color-text);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-border);
+        }
+
+        .show-only-when-notification-needed {
+            display: var(--notification-request-display, block);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .segmented-control {
+            display: flex;
+            background: var(--color-control-bg);
+            border-radius: 8px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .segmented-control input {
+            display: none;
+        }
+
+        .segmented-control label {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            margin: 0;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.1s;
+            color: var(--color-text-secondary);
+        }
+
+        .segmented-control input:checked+label {
+            background: var(--color-surface);
+            color: var(--color-text);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            font-weight: 600;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .checkbox-group input {
+            width: auto;
+            margin: 0;
+        }
+
+        .checkbox-group.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .checkbox-group.disabled input {
+            cursor: not-allowed;
+        }
+
+        input[type="number"],
+        input[type="time"],
+        input[type="color"],
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--color-surface);
+            color: var(--color-text);
+            color-scheme: var(--theme-scheme);
+            box-sizing: border-box;
+        }
+
+        input:focus,
+        select:focus {
+            outline: 2px solid var(--color-teal-500);
+            border-color: var(--color-teal-500);
+        }
+
+        .time-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .time-tag {
+            background: var(--initial-color, #06BBFA);
+            color: var(--initial-text-color, white);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 1px 2px 1px 2px rgba(0, 0, 0, 0.08);
+            transition: transform 0.1s ease-out, opacity 0.2s;
+        }
+
+        .time-tag:hover {
+            opacity: 0.9;
+        }
+
+        .time-tag.deleted {
+            background: var(--color-control-bg) !important;
+            color: var(--color-text-secondary) !important;
+            animation: fadeInOut 8s ease-out forwards;
+            box-shadow: none;
+        }
+
+        @keyframes fadeInOut {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            80% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+        }
+
+        /* 環境別表示制御 */
+        .show-only-pc,
+        .show-only-pwa,
+        .show-only-mobile-browser {
+            display: none;
+        }
+
+        .is-pc .show-only-pc {
+            display: block;
+        }
+
+        .is-pwa .show-only-pwa {
+            display: block;
+        }
+
+        .is-mobile-browser .show-only-mobile-browser {
+            display: block;
+        }
+
+        .time-tag button {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0;
+            line-height: 1;
+            transition: transform 0.1s ease-out, opacity 0.2s;
+        }
+
+        .time-tag:not(.deleted):has(button:hover) {
+            opacity: 0.4;
+        }
+
+        .time-tag button:hover {
+            transform: translateY(0.8px) scale(1.2);
+        }
+
+        .settings-toggle {
+            display: none;
+        }
+
+        .settings-content {
+            display: none;
+        }
+
+        .settings-toggle:checked~.settings-content {
+            display: block;
+        }
+
+        .toggle-label {
+            cursor: pointer;
+            display: block;
+            text-align: center;
+            padding: 12px;
+            background: var(--color-control-bg);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-weight: 500;
+            transition: background-color 0.2s, transform 0.1s ease-out, box-shadow 0.1s ease-out;
+            user-select: none;
+            box-shadow: 1px 2px 1px 2px rgba(0, 0, 0, 0.08);
+        }
+
+        .toggle-label:hover {
+            background: var(--color-border);
+        }
+
+        .toggle-label:active {
+            transform: scale(0.99);
+            box-shadow: 1px 2px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .notification-status {
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .notification-enabled {
+            background: rgba(var(--color-teal-500-rgb), 0.15);
+            color: var(--color-teal-600);
+            border: 1px solid rgba(var(--color-teal-500-rgb), 0.25);
+        }
+
+        .notification-disabled {
+            background: rgba(192, 21, 47, 0.15);
+            color: #c0152f;
+            border: 1px solid rgba(192, 21, 47, 0.25);
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        .color-preset {
+            width: 100%;
+            height: 40px;
+            border: 2px solid var(--color-border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.1s ease-out;
+        }
+
+        .color-preset:hover {
+            transform: scale(1.1);
+            border-color: var(--color-teal-500);
+        }
+
+        .color-preset:active {
+            transform: scale(0.9);
+        }
+
+        .footer-note {
+            text-align: center;
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            margin-top: 40px;
+            padding-bottom: 20px;
+        }
+
+        .retroactive-panel {
+            display: none;
+            background: var(--color-control-bg);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 4px;
+            margin-bottom: 12px;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .retroactive-panel input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: var(--color-border);
+            border-radius: 4px;
+            outline: none;
+            margin: 8px 0;
+        }
+
+        .retroactive-panel input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--initial-color, #06BBFA);
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            border: 2px solid var(--color-surface);
+        }
+
+        .retroactive-panel input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--initial-color, #06BBFA);
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            border: 2px solid var(--color-surface);
+        }
+
+        .btn-text {
+            background: none;
+            border: none;
+            font-size: 14px;
+            color: var(--initial-color, #06BBFA);
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 8px 16px;
+            transition: opacity 0.2s;
+        }
+
+        .btn-text:hover {
+            opacity: 0.8;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <svg style="display: none;">
+        <symbol id="icon-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </symbol>
+    </svg>
+
+    <div class="container">
+        <h1>☕ カフェタッチリマインダー</h1>
+
+        <div id="notificationStatus"
+            class="notification-status notification-disabled show-only-when-notification-needed">
+            通知が無効です。「通知を許可する」ボタンをクリックしてください
+        </div>
+
+        <div id="initialSetupCard" class="card" style="display: none;">
+            <h2 style="margin-top: 0; font-size: 18px;">初期設定</h2>
+
+            <div class="form-group show-only-when-notification-needed"
+                style="margin-top: 16px; padding: 12px; background: rgba(var(--color-teal-500-rgb), 0.08); border-radius: 8px; border: 1px solid rgba(var(--color-teal-500-rgb), 0.25);">
+                <label
+                    style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 14px; margin-bottom: 8px;">
+                    <svg width="18" height="18">
+                        <use href="#icon-bell"></use>
+                    </svg>
+                    通知を有効にする
+                </label>
+                <button class="btn btn-secondary" id="enableNotificationBtnInitial" onclick="enableNotifications()"
+                    style="width: 100%; padding: 12px;">
+                    通知を許可する
+                </button>
+                <div class="help-text" style="margin-top: 8px;">
+                    ブラウザ通知でカフェタッチのタイミングをお知らせします
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>ゲーム内でカフェタッチのクールタイムがリセットされる時刻（毎日この時間にリセット）</label>
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                    <div style="flex: 1;">
+                        <label for="initialMorningTime" style="font-size: 12px; opacity: 0.8;">1回目</label>
+                        <input type="time" id="initialMorningTime" value="04:00">
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="initialEveningTime" style="font-size: 12px; opacity: 0.8;">2回目</label>
+                        <input type="time" id="initialEveningTime" value="16:00">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="initialActionTime">カフェタッチにかかる時間（秒）</label>
+                <input type="number" id="initialActionTime" value="30" min="0">
+                <div class="help-text">
+                    カフェタッチの操作にかかる秒数です<br>通知後にこの秒数の間待機して、自動で次のタイマーを開始します
+                </div>
+            </div>
+
+            <div class="help-text"
+                style="margin-top: 20px; border-top: 1px solid var(--color-border); padding-top: 12px;">
+                💡 これらの設定やクールタイムの時間は、下の「設定」からいつでも変更できます
+            </div>
+
+            <div style="height: 16px;"></div>
+            <button class="btn btn-primary" id="initialSetupConfirmBtn">この内容で開始する</button>
+        </div>
+
+        <div class="card">
+            <div class="status">
+                <div class="timer-container">
+                    <!-- リセットボタン (タイマー左隣・対称) -->
+                    <button id="resetTimerBtn" class="control-btn reset-btn hover-warning" onclick="resetTimer()"
+                        title="タイマーを解除して固定時間を待つ">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                    </button>
+
+                    <!-- メインタイマー -->
+                    <div class="timer" id="timer">00:00:00</div>
+
+                    <!-- ベルボタン (右隣) -->
+                    <button id="muteBtn" class="control-btn mute-btn hover-pause" onclick="toggleMute()"
+                        title="通知を一時停止/再開">
+                        <svg id="bellIconOn" width="28" height="28" fill="currentColor" fill-opacity="0.15">
+                            <use href="#icon-bell"></use>
+                        </svg>
+                        <svg id="bellIconOff" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            style="display: none;">
+                            <path d="M10.3 4.5A6 6 0 0 1 18 8c0 2.22.63 4.14 1.3 5.4" stroke-opacity="0.5"></path>
+                            <path d="M11.8 3.5a6 6 0 0 0-5.8 4.5c0 2.5-.5 4.8-1.3 6" stroke-opacity="0.5"></path>
+                            <path d="M3 17h16" stroke-opacity="0.5"></path>
+                            <path d="M10.3 21a2 2 0 0 0 3.4 0" stroke-opacity="0.5"></path>
+                            <line x1="2" y1="2" x2="22" y2="22" stroke="#e34a45" stroke-width="2.5"></line>
+                        </svg>
+                    </button>
+                </div>
+                <!-- ステータス表示ライン -->
+                <div class="next-time" id="nextTime">
+                    <span class="info-part info-left" id="lastTouchDisplay">前回 00:00:00</span>
+                    <span class="info-center" id="statusDisplay"></span>
+                    <span class="info-part info-right" id="nextTouchDisplay">次回 00:00:00</span>
+                </div>
+            </div>
+            <button class="btn btn-primary" id="completedBtn" onclick="markCompleted()">
+                ✓ カフェタッチ完了
+                <div id="autoUpdateBar" class="auto-update-bar"></div>
+            </button>
+            <button id="retroactiveModeBtn" class="btn btn-secondary"
+                onclick="toggleRetroactiveMode()">タッチした時刻を入力</button>
+
+            <!-- 遡って完了登録機能パネル -->
+            <div id="retroactivePanel" class="retroactive-panel">
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: center;">
+                        <input type="time" id="retroactiveTimeInput" onchange="syncSliderFromTime()"
+                            style="font-size: 28px; text-align: center; width: auto; padding: 4px 16px; font-weight: 600; border-color: var(--initial-color, #06BBFA);">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <div
+                        style="display: flex; justify-content: space-between; font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px;">
+                        <span id="retroactiveSliderLabelMin">3時間前</span>
+                        <span>現在</span>
+                    </div>
+                    <input type="range" id="retroactiveSlider" min="-180" max="0" value="0" step="1"
+                        oninput="syncTimeFromSlider()" style="width: 100%; cursor: pointer;">
+                </div>
+
+                <label id="retroactiveRangeLabel"
+                    style="text-align: center; margin-bottom: 16px; font-weight: normal; opacity: 0.8;">前回タッチした時刻を設定してください</label>
+
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary" style="flex: 1; padding: 12px;"
+                        onclick="toggleRetroactiveMode()">キャンセル</button>
+                    <button class="btn btn-primary" style="flex: 2; padding: 12px;"
+                        onclick="confirmRetroactive()">決定</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <input type="checkbox" id="settingsToggle" class="settings-toggle">
+            <label for="settingsToggle" class="toggle-label">⚙️ 設定を開く/閉じる</label>
+
+            <div class="settings-content">
+                <!-- グループ1: 動作 -->
+                <div class="form-group">
+                    <label class="checkbox-group" style="margin-bottom: 8px;">
+                        <input type="checkbox" id="autoUpdateNextInput" checked>
+                        通知から操作時間経過後に自動で次の予定をセットする
+                    </label>
+                    <div class="help-text">オフにすると、通知後に「カフェタッチ完了」ボタンを押すまで待機します</div>
+
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+
+                <!-- グループ2: 通知・表示 -->
+                <div class="form-group">
+                    <label class="checkbox-group" style="margin-bottom: 8px;">
+                        <input type="checkbox" id="notifyOnCompleteInput">
+                        完了時に通知を表示する
+                    </label>
+                    <div class="help-text">「カフェタッチ完了」ボタンを押した際にも通知でお知らせします</div>
+
+                    <label class="checkbox-group" style="margin-top: 12px; margin-bottom: 8px;">
+                        <input type="checkbox" id="notificationSoundInput" checked>
+                        通知時に音を鳴らす
+                    </label>
+                    <div class="help-text">※OSやブラウザ側の通知設定が優先されます</div>
+
+                    <div class="show-only-pc" style="margin-top: 12px; margin-bottom: 4px;">
+                        <label class="checkbox-group">
+                            <input type="checkbox" id="requireInteractionInput" onchange="toggleFocusSetting()">
+                            通知を自動で消さない（クリックで完了）
+                        </label>
+                        <div class="help-text">有効にすると、リマインド通知が画面に残り続けます。<br>通知をクリックすると「カフェタッチ完了」として処理されます。</div>
+
+                        <div style="margin-left: 24px; margin-top: 8px;">
+                            <label class="checkbox-group" id="preventFocusContainer">
+                                <input type="checkbox" id="preventFocusOnNotificationClickInput">
+                                通知クリック時にウィンドウを開かない
+                            </label>
+                            <div class="help-text">有効にすると、クリックしてもブラウザを最前面に表示しません</div>
+                        </div>
+                    </div>
+
+                    <!-- PWA専用: 通知設定の案内 -->
+                    <div id="pwaAdvancedSettings" class="show-only-mobile-pwa"
+                        style="margin-top: 16px; padding: 16px; background: rgba(var(--color-teal-500-rgb), 0.05); border-radius: 12px; border: 1px solid rgba(var(--color-teal-500-rgb), 0.1); display: none;">
+                        <h4 style="margin: 0 0 12px 0; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 16px;">🚀</span> PWA 版 通知設定ガイド
+                        </h4>
+
+                        <div class="help-text" style="margin-bottom: 12px; font-size: 13px;">
+                            ポップアップ（画面上部への通知）やバイブレーション（振動）を有効にするには、OS側の設定変更が必要です。
+                        </div>
+
+                        <div id="pwaGuidePath" class="help-text"
+                            style="padding: 10px; background: var(--color-surface); border-radius: 6px; border-left: 3px solid var(--color-teal-500); font-size: 13px; margin-bottom: 16px;">
+                            💡 動作しない場合は、デバイスの<br>
+                            <span id="pwaOSPathText" style="font-weight: 500;">[設定] > [通知]</span><br>
+                            からポップアップ、バイブレーションをオンにしてください
+                        </div>
+
+                        <button class="btn btn-secondary" style="width: 100%; font-size: 13px; padding: 8px;"
+                            onclick="checkNotificationPermissionManual()">
+                            🔔 OS設定を確認する手順
+                        </button>
+                    </div>
+
+
+                    <!-- 非PWAモバイル用: インストール誘導 -->
+                    <div class="show-only-mobile-browser"
+                        style="margin-top: 16px; padding: 12px; background: rgba(var(--color-teal-500-rgb), 0.05); border-radius: 8px; border: 1px dashed rgba(var(--color-teal-500-rgb), 0.3); font-size: 13px;">
+                        <strong>ホーム画面に追加（インストール）</strong>すると、端末の振動や画面上部へのポップアップ通知がアプリごとに設定しやすくなります。
+                        Android版Microsoft Edgeをお使いの方は、設定の項目が異なるため一時的にGoogle Chromeを使用してホーム画面に追加(インストール)することをお勧めします。
+
+                    </div>
+
+                    <label class="checkbox-group" style="margin-top: 12px;">
+                        <input type="checkbox" id="showTitleTimerInput" checked>
+                        タブのタイトルに残り時間を表示する
+                    </label>
+                    <div class="help-text">別のタブを見ていても状況を確認できます（分単位の表示）</div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+
+                <!-- グループ3: メッセージ設定・状態・テスト -->
+                <div style="margin-bottom: 24px;">
+                    <h3 style="font-size: 16px; margin-bottom: 16px;">💬 通知メッセージの設定</h3>
+
+                    <div class="form-group">
+                        <label>リマインド通知（時間になった時）</label>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <input type="text" id="remindTitleInput" placeholder="タイトル (例: カフェタッチの時間です！)"
+                                oninput="saveSettingsAuto()">
+                            <input type="text" id="remindBodyInput" placeholder="本文 (例: カフェタッチを忘れずに♪)"
+                                oninput="saveSettingsAuto()">
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 24px;">
+                        <label>完了通知（ボタンを押した時）</label>
+                        <input type="text" id="completeTitleInput" placeholder="タイトル (例: カフェタッチ完了！)"
+                            oninput="saveSettingsAuto()">
+                        <div class="help-text">本文は「>> HH:mm:ss」形式で固定されます</div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                        <div id="notificationStatusInSettings" class="help-text" style="font-weight: 500;">通知状態: 未確認
+                        </div>
+                        <div class="show-only-when-notification-needed">
+                            <button class="btn btn-secondary" id="enableNotificationBtn" onclick="enableNotifications()"
+                                style="width: auto; padding: 10px 24px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                                <svg width="18" height="18">
+                                    <use href="#icon-bell"></use>
+                                </svg>
+                                通知を許可する
+                            </button>
+                        </div>
+                        <button class="btn btn-secondary"
+                            style="width: auto; padding: 10px 24px; margin-bottom: 0; display: flex; align-items: center; gap: 8px;"
+                            onclick="sendTestNotification()">
+                            <svg width="18" height="18">
+                                <use href="#icon-bell"></use>
+                            </svg>
+                            テスト通知を送る
+                        </button>
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+
+                <div class="form-group">
+                    <label>テーマカラー</label>
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px;">
+                        <!-- 1行目：学園カラー -->
+                        <button class="color-preset" style="background: #06BBFA;"
+                            onclick="setColor('#06BBFA')"></button>
+                        <button class="color-preset" style="background: #E34A45;"
+                            onclick="setColor('#E34A45')"></button>
+                        <button class="color-preset" style="background: #4F86F7;"
+                            onclick="setColor('#4F86F7')"></button>
+                        <button class="color-preset" style="background: #FBB35A;"
+                            onclick="setColor('#FBB35A')"></button>
+                        <button class="color-preset" style="background: #E05289;"
+                            onclick="setColor('#E05289')"></button>
+
+                        <!-- 2行目 -->
+                        <button class="color-preset" style="background: #03C03C;"
+                            onclick="setColor('#03C03C')"></button>
+                        <button class="color-preset" style="background: #B23B59;"
+                            onclick="setColor('#B23B59')"></button>
+                        <button class="color-preset" style="background: #A1A9E1;"
+                            onclick="setColor('#A1A9E1')"></button>
+                        <button class="color-preset" style="background: #DBDAD8;"
+                            onclick="setColor('#DBDAD8')"></button>
+                        <button class="color-preset" style="background: #90ABC9;"
+                            onclick="setColor('#90ABC9')"></button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <input type="color" id="colorPicker" value="#06BBFA"
+                            style="width: 33.3%; height: 44px; cursor: pointer;" onchange="setColor(this.value)">
+                        <span style="font-size: 20px;">🎨</span>
+                    </div>
+                    <div class="help-text">プリセットカラーを選択するか、カラーピッカーで自由に色を設定できます</div>
+                </div>
+
+                <div class="form-group">
+                    <label>カラーモード</label>
+                    <div class="segmented-control">
+                        <input type="radio" id="theme-system" name="themeMode" value="system"
+                            onchange="setThemeMode(this.value)">
+                        <label for="theme-system">システム</label>
+                        <input type="radio" id="theme-light" name="themeMode" value="light"
+                            onchange="setThemeMode(this.value)">
+                        <label for="theme-light">ライト</label>
+                        <input type="radio" id="theme-dark" name="themeMode" value="dark"
+                            onchange="setThemeMode(this.value)">
+                        <label for="theme-dark">ダーク</label>
+                    </div>
+                    <div class="help-text">画面の明るさを設定します。（システムを選ぶとブラウザの設定に従います）</div>
+                </div>
+
+                <div class="form-group">
+                    <label>ボタン内と一部の文字色</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary" style="flex: 1; padding: 12px; color: white;" data-fixed-color
+                            onclick="setTextColor('white')">サンプル 白</button>
+                        <button class="btn btn-primary" style="flex: 1; padding: 12px; color: black;" data-fixed-color
+                            onclick="setTextColor('black')">サンプル 黒</button>
+                    </div>
+                    <div class="help-text">ボタンと固定時間タグの文字色を設定します</div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+
+                <div class="form-group">
+                    <label>カフェタッチのクールタイム（分）</label>
+                    <input type="number" id="cooldownInput" value="180" min="1" oninput="saveSettingsAndRecalculate()"
+                        style="width: 120px;">
+                    <div class="help-text">カフェタッチ後のクールタイム、次にタッチできるまでの時間（デフォルト: 180分 = 3時間）</div>
+                </div>
+
+                <div class="form-group">
+                    <label>カフェタッチにかかる時間（秒）</label>
+                    <input type="number" id="actionTimeInput" value="30" min="0" oninput="saveSettingsAndRecalculate()"
+                        style="width: 120px;">
+                    <div class="help-text">カフェタッチの操作にかかる時間（デフォルト: 30秒）<br>通知からこの時間が経過すると自動で次の予定がセットされます</div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+
+                <div class="form-group">
+                    <label>固定リセット時刻（複数設定可能）</label>
+                    <div id="addFixedTimeContainer"
+                        style="display: flex; gap: 8px; align-items: center; min-height: 44px;">
+                        <!-- 初期状態: 追加ボタンのみ -->
+                        <button id="showAddFixedTimeBtn" class="btn btn-secondary"
+                            style="margin-bottom: 0; padding: 10px 16px; font-size: 14px;"
+                            onclick="showAddFixedTimeMode()">
+                            <span style="font-size: 16px; font-weight: bold; margin-right: 4px;">+</span> 時刻を追加
+                        </button>
+
+                        <!-- 入力モード時 (初期非表示) -->
+                        <div id="addFixedTimeInputGroup"
+                            style="display: none; align-items: center; gap: 8px; width: 100%;">
+                            <input type="time" id="fixedTimeInput" style="flex: 1; height: 44px;">
+                            <button class="btn btn-primary" style="width: auto; padding: 10px 20px; margin-bottom: 0;"
+                                onclick="addFixedTime()">決定</button>
+                            <button class="btn btn-secondary" style="width: auto; padding: 10px 12px; margin-bottom: 0;"
+                                onclick="hideAddFixedTimeMode()">✕</button>
+                        </div>
+                    </div>
+                    <div class="time-list" id="fixedTimesList"></div>
+                    <div class="help-text">例: 4:00, 16:00 など、毎日この時刻にリセットされます</div>
+                </div>
+
+                <div class="card" style="background: rgba(var(--color-teal-500-rgb), 0.08); margin-top: 20px;">
+                    <h3 style="margin-top: 0;">操作説明</h3>
+
+                    <div style="font-size: 14px; line-height: 1.5;">
+                        <p>ブルーアーカイブのカフェタッチのタイミングを通知するリマインダーです。<br>
+                            PCブラウザでは「完全ローカル」で安定動作し、スマホ（Android）では「クラウド経由（Cloudflare Worker）」でバックグラウンド通知を行います。</p>
+
+                        <!-- スマホ環境用のお詫び文・環境ごとの違い -->
+                        <div id="instructionNotice"
+                            style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); padding: 12px; border-radius: 8px; margin: 16px 0; font-size: 13px; line-height: 1.5;">
+                            <strong style="color: #FFC107;">📱 スマホ環境でのご利用について</strong>
+                            <ul style="margin: 8px 0 0 0; padding-left: 20px; color: var(--color-text-secondary);">
+                                <li><strong>共通</strong>:
+                                    クラウド経由でPush通知を送るため、環境や無料枠の制限により通知が10秒〜数分程度遅れる場合があります。</li>
+                                <li><strong>Android</strong>:
+                                    ホーム画面に追加（インストール）すると、振動・ポップアップ通知の設定が行いやすくなります。</li>
+                                <li><strong>iOS (iPhone)</strong>:
+                                    「ホーム画面に追加」して起動しないとWeb Push通知が利用できません。また、iOSの仕様上バックグラウンドでの長時間の自動更新が不安定になる場合があります。
+                                </li>
+                            </ul>
+                        </div>
+
+                        <p id="instructionAutoUpdate"><strong>自動更新</strong><br>
+                            通知後にカフェタッチ完了ボタンを押さずに放置すると、<br>「カフェタッチにかかる時間」+「カフェタッチのクールタイム」が<br>次回の通知タイミングに自動的に設定されます。</p>
+
+                        <p id="instructionManualUpdate"><strong>手動更新</strong><br>
+                            カフェタッチが予定時刻より遅れた場合や「カフェタッチ完了」ボタンを押した瞬間から、最短のクールタイムを計りたい場合は「カフェタッチ完了」ボタンを押してください。<br>クールタイムのみをカウントするタイマーが設定されます。
+                        </p>
+
+                        <p id="instructionChangeSettings" style="font-size: 13px; opacity: 0.8; margin-top: 12px;">
+                            操作時間やクールタイムは設定画面から変更可能です。
+                        </p>
+                    </div>
+                </div>
+
+                <div
+                    style="margin-top: 32px; border-top: 1px solid var(--color-border); padding-top: 16px; text-align: center;">
+                    <button class="btn-text" style="color: #c0152f; font-size: 13px;" onclick="resetApp()">⚠️
+                        すべての設定を削除する</button>
+                    <div class="help-text">設定などすべてのデータが削除されます</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="footer-note show-only-pc">💡 通知を受け取るには、このタブを開いたままにしておいてください</div>
+    </div>
+
+    <script>
+        let fixedTimes = [];
+        let cooldownMinutes = 180;
+        let actionTimeSeconds = 30;
+
+        // --- Web Push Settings ---
+        const VAPID_PUBLIC_KEY = 'BDhsA4_i9Dd6zh0p0QoGCL-tyXG1rTbmqz_1-l3KE0qtViJ01pS25EDZeaBGn0jnDR2YLTezFHX8qFcEPBNI4Lg';
+        const WORKER_URL = 'https://cafe-push-worker.laid-tiles.workers.dev'; // デプロイ済みのWorker URL
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+
+
+        function getNotificationSettings() {
+            if (isMobile) {
+                // モバイル環境では常にOSにポップアップや振動を委ねるため、余計なフラグを送らない
+                return {
+                    requireInteraction: false,
+                };
+            }
+            return {
+                requireInteraction: document.getElementById('requireInteractionInput')?.checked || false,
+            };
+        }
+
+        async function syncScheduleToWorker(targetDate) {
+            if (!targetDate) return;
+            const now = new Date().getTime();
+            const delaySeconds = Math.floor((targetDate.getTime() - now) / 1000);
+
+            // 過去の場合は不要
+            if (delaySeconds <= 0) return;
+
+            const subStr = localStorage.getItem('pushSubscription');
+            if (!subStr) return;
+            const subscription = JSON.parse(subStr);
+
+            const settings = getNotificationSettings();
+
+            try {
+                await fetch(`${WORKER_URL}/schedule`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subscription,
+                        delaySeconds,
+                        payload: {
+                            title: remindTitle,
+                            body: remindBody,
+                            requireInteraction: settings.requireInteraction,
+                            enableVibration: settings.enableVibration
+                        },
+                        // 自動次回登録用パラメータ（Worker側で次のスケジュールを自動投入する）
+                        autoUpdate: autoUpdateNext,
+                        cooldownMinutes: cooldownMinutes,
+                        actionTimeSeconds: actionTimeSeconds,
+                        fixedTimes: fixedTimes
+                    })
+                });
+                console.log('Worker Sync: Scheduled in', delaySeconds, 'seconds (autoUpdate:', autoUpdateNext, ')');
+            } catch (e) {
+                console.error('Worker Sync Failed:', e);
+            }
+        }
+        // -------------------------
+        let notifyOnComplete = false;
+        let notificationSound = true;
+        let requireInteraction = false;
+        let preventFocusOnNotificationClick = false;
+        let preventSleep = true;
+        let showTitleTimer = true;
+        let autoUpdateNext = true;
+        let muteNotifications = false; // 通知ミュート状態
+        let themeMode = 'system';
+        let nextNotificationTime = null;
+        let lastNotifiedTime = null;
+        let lastCompletedTime = null;
+        let pendingAutoUpdateTime = null;
+        let isDelayedNotification = false;
+        let enableVibration = true; // PWA向け：振動設定
+
+        let remindTitle = "カフェタッチの時間です！";
+        let remindBody = "カフェタッチを忘れずに♪";
+        let completeTitle = "カフェタッチ完了！";
+
+        let notificationPermission = false;
+        let lastScheduledSource = 'fixed';
+        let primaryColor = '#06BBFA';
+        let textColor = 'white';
+        let isInitialSetupDone = false;
+
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        let retroactiveBaseTime = null;
+
+        let worker = null;
+        let mainInterval = null;
+
+        const workerCode = `
+            let timer = null;
+            function startTimer(interval) {
+                if (timer) clearInterval(timer);
+                timer = setInterval(() => self.postMessage('tick'), interval);
+            }
+            self.onmessage = (e) => {
+                if (e.data.type === 'setRate') startTimer(e.data.interval);
+                if (e.data.type === 'stop') clearInterval(timer);
+            };
+            startTimer(200);
+        `;
+
+        function updateTimerSystem() {
+            if (worker) {
+                worker.postMessage({ type: 'stop' });
+                worker.terminate();
+                worker = null;
+            }
+            if (mainInterval) {
+                clearInterval(mainInterval);
+                mainInterval = null;
+            }
+
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            const objectUrl = URL.createObjectURL(blob);
+            worker = new Worker(objectUrl);
+            URL.revokeObjectURL(objectUrl); // メモリリーク防止のためURLを解放
+            worker.onmessage = () => updateTimerLogic();
+            setWorkerRate(document.hidden ? 1000 : 200);
+        }
+
+        function setWorkerRate(interval) {
+            if (worker) worker.postMessage({ type: 'setRate', interval: interval });
+        }
+
+        function loadSettings() {
+            const saved = localStorage.getItem('cafeTouchSettings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                fixedTimes = settings.fixedTimes || [];
+                primaryColor = settings.primaryColor || '#06BBFA';
+                textColor = settings.textColor || 'white';
+                cooldownMinutes = settings.cooldownMinutes || 180;
+                actionTimeSeconds = settings.actionTimeSeconds || 30;
+                notifyOnComplete = settings.notifyOnComplete || false;
+                notificationSound = settings.notificationSound !== undefined ? settings.notificationSound : true;
+                requireInteraction = settings.requireInteraction !== undefined ? settings.requireInteraction : false;
+                preventFocusOnNotificationClick = settings.preventFocusOnNotificationClick !== undefined ? settings.preventFocusOnNotificationClick : false;
+                preventSleep = true; // 常に有効化
+                showTitleTimer = settings.showTitleTimer !== undefined ? settings.showTitleTimer : true;
+                autoUpdateNext = settings.autoUpdateNext !== undefined ? settings.autoUpdateNext : true;
+                muteNotifications = settings.muteNotifications !== undefined ? settings.muteNotifications : false;
+                themeMode = settings.themeMode || 'system';
+                nextNotificationTime = settings.nextNotificationTime ? new Date(settings.nextNotificationTime) : null;
+                lastNotifiedTime = settings.lastNotifiedTime ? new Date(settings.lastNotifiedTime) : null;
+                lastCompletedTime = settings.lastCompletedTime ? new Date(settings.lastCompletedTime) : null;
+                pendingAutoUpdateTime = settings.pendingAutoUpdateTime ? new Date(settings.pendingAutoUpdateTime) : null;
+                isDelayedNotification = settings.isDelayedNotification || false;
+
+                remindTitle = settings.remindTitle || "カフェタッチの時間です！";
+                remindBody = settings.remindBody || "カフェタッチを忘れずに♪";
+                completeTitle = settings.completeTitle || "カフェタッチ完了！";
+
+                lastScheduledSource = settings.lastScheduledSource || 'fixed';
+                isInitialSetupDone = settings.isInitialSetupDone || false;
+                enableVibration = settings.enableVibration !== undefined ? settings.enableVibration : true;
+            }
+
+            // 環境別クラスの付外
+            document.body.classList.remove('is-pc', 'is-pwa', 'is-mobile-browser');
+            if (isStandalone) {
+                document.body.classList.add('is-pwa');
+            } else if (isMobile) {
+                document.body.classList.add('is-mobile-browser');
+            } else {
+                document.body.classList.add('is-pc');
+            }
+
+            // OS別誘導パスの適用
+            const osPathText = document.getElementById('pwaOSPathText');
+            if (osPathText) {
+                osPathText.textContent = isIOS ? '[設定] > [通知] > [カフェタッチ]' : '[設定] > [アプリ] > [カフェタッチ] > [通知] > [全般]';
+            }
+
+            // 振動設定の表示制御 (iOS PWAでは非表示)
+            const vibContainer = document.getElementById('pwaVibrationContainer');
+            if (vibContainer) {
+                vibContainer.style.display = (isIOS && isStandalone) ? 'none' : 'block';
+            }
+
+            if (!saved || !isInitialSetupDone) {
+                fixedTimes = fixedTimes.length > 0 ? fixedTimes : ['04:00', '16:00'];
+                document.getElementById('initialSetupCard').style.display = 'block';
+            }
+
+            document.getElementById('cooldownInput').value = cooldownMinutes;
+            document.getElementById('actionTimeInput').value = actionTimeSeconds;
+            document.getElementById('initialActionTime').value = actionTimeSeconds;
+            document.getElementById('notifyOnCompleteInput').checked = notifyOnComplete;
+            document.getElementById('notificationSoundInput').checked = notificationSound;
+            document.getElementById('requireInteractionInput').checked = requireInteraction;
+            document.getElementById('preventFocusOnNotificationClickInput').checked = preventFocusOnNotificationClick;
+            document.getElementById('showTitleTimerInput').checked = showTitleTimer;
+            document.getElementById('autoUpdateNextInput').checked = autoUpdateNext;
+            document.getElementById('colorPicker').value = primaryColor;
+
+            document.getElementById('remindTitleInput').value = remindTitle;
+            document.getElementById('remindBodyInput').value = remindBody;
+            document.getElementById('completeTitleInput').value = completeTitle;
+
+            const themeRadio = document.querySelector(`input[name="themeMode"][value="${themeMode}"]`);
+            if (themeRadio) themeRadio.checked = true;
+
+            toggleFocusSetting(); // UI状態の初期化
+            updateFixedTimesList();
+            updateTimerSystem();
+            applyPrimaryColor();
+            updateNotificationStatus();
+            updateMuteUI();
+
+            if (isInitialSetupDone) {
+                if (nextNotificationTime && nextNotificationTime < new Date()) {
+                    updateTimerLogic(true);
+                } else if (!nextNotificationTime) {
+                    recalculateNextNotificationTime();
+                }
+            }
+        }
+
+        function saveSettings() {
+            if (!isInitialSetupDone && !document.getElementById('initialSetupCard').style.display === 'none') return;
+
+            cooldownMinutes = parseInt(document.getElementById('cooldownInput').value) || 180;
+            actionTimeSeconds = parseInt(document.getElementById('actionTimeInput').value) || 0;
+            notifyOnComplete = document.getElementById('notifyOnCompleteInput').checked;
+            notificationSound = document.getElementById('notificationSoundInput').checked;
+            requireInteraction = document.getElementById('requireInteractionInput').checked;
+            preventFocusOnNotificationClick = document.getElementById('preventFocusOnNotificationClickInput').checked;
+            preventSleep = true; // 常に保存
+            autoUpdateNext = document.getElementById('autoUpdateNextInput').checked;
+
+            remindTitle = document.getElementById('remindTitleInput').value || "カフェタッチの時間です！";
+            remindBody = document.getElementById('remindBodyInput').value || "カフェタッチを忘れずに♪";
+            completeTitle = document.getElementById('completeTitleInput').value || "カフェタッチ完了！";
+
+            const themeCheck = document.querySelector('input[name="themeMode"]:checked');
+            themeMode = themeCheck ? themeCheck.value : 'system';
+            primaryColor = document.getElementById('colorPicker').value;
+
+            const settings = {
+                fixedTimes, cooldownMinutes, actionTimeSeconds, notifyOnComplete, notificationSound,
+                requireInteraction, preventFocusOnNotificationClick,
+                preventSleep, showTitleTimer, autoUpdateNext, muteNotifications, themeMode,
+                nextNotificationTime: nextNotificationTime ? nextNotificationTime.toISOString() : null,
+                lastNotifiedTime: lastNotifiedTime ? lastNotifiedTime.toISOString() : null,
+                lastCompletedTime: lastCompletedTime ? lastCompletedTime.toISOString() : null,
+                pendingAutoUpdateTime: pendingAutoUpdateTime ? pendingAutoUpdateTime.toISOString() : null,
+                isDelayedNotification,
+                remindTitle, remindBody, completeTitle,
+                lastScheduledSource, primaryColor, textColor, isInitialSetupDone,
+                enableVibration
+            };
+            localStorage.setItem('cafeTouchSettings', JSON.stringify(settings));
+
+            // モバイルの場合、設定変更を即座に Worker 側のスケジュールにも反映させる
+            if (isMobile && nextNotificationTime) {
+                syncScheduleToWorker(nextNotificationTime);
+            }
+        }
+
+        async function checkNotificationPermissionManual() {
+            let lines = ['【通知診断レポート】\n'];
+
+            // 1. 通知権限
+            const perm = Notification.permission;
+            const permOk = perm === 'granted';
+            lines.push(`${permOk ? '✅' : '❌'} 通知権限: ${perm}${permOk ? '（OK）' : '（NG）'}`);
+
+            if (isMobile && 'serviceWorker' in navigator) {
+                // 2. Push購読構造
+                let subOk = false;
+                try {
+                    const reg = await navigator.serviceWorker.ready;
+                    const sub = await reg.pushManager.getSubscription();
+                    subOk = !!sub;
+                    lines.push(`${subOk ? '✅' : '❌'} プッシュ購読: ${subOk ? 'あり（OK）' : 'なし — 通知許可ボタンから再登録してください'}`);
+                } catch (e) {
+                    lines.push(`❌ プッシュ購読: 取得エラー`);
+                }
+
+                // 3. Service Worker
+                const reg2 = await navigator.serviceWorker.getRegistration();
+                const swOk = !!reg2;
+                lines.push(`${swOk ? '✅' : '❌'} Service Worker: ${swOk ? '登録済み（OK）' : '未登録 — ページを再読み込みしてください'}`);
+
+                // 4. PWAモード
+                lines.push(`${isStandalone ? '✅' : '❗'} PWA(ホーム画面起動): ${isStandalone ? 'Yes（OK）' : 'No'}`);
+
+                // 5. OSの通知設定(Web APIでは取得不可)
+                lines.push(`❓ OS通知設定: 取得不可（WebAPIからは参照できません）`);
+
+                // 6. 振動設定の診断
+                lines.push('');
+                lines.push(`💡 ポップアップや振動のオン/オフは、OS側の設定で制御されます`);
+                if (isIOS) {
+                    lines.push(`   [設定] > [通知] > [カフェタッチ]`);
+                } else {
+                    lines.push(`   [設定] > [アプリ] > [カフェタッチ] > [通知]`);
+                }
+
+                if (!permOk) {
+                    lines.push(`\n⚠️ 通知権限が必要です。下の「通知を許可する」ボタンを押してください。`);
+                }
+            }
+
+            alert(lines.join('\n'));
+        }
+
+        function saveSettingsAuto() {
+            saveSettings();
+        }
+
+        function saveSettingsAndRecalculate() {
+            saveSettings();
+            recalculateNextNotificationTime();
+        }
+
+        function toggleFocusSetting() {
+            const isRequire = document.getElementById('requireInteractionInput').checked;
+            const focusContainer = document.getElementById('preventFocusContainer');
+            const focusInput = document.getElementById('preventFocusOnNotificationClickInput');
+
+            if (isRequire) {
+                focusContainer.classList.remove('disabled');
+                focusInput.disabled = false;
+            } else {
+                focusContainer.classList.add('disabled');
+                focusInput.disabled = true;
+            }
+            saveSettings();
+        }
+
+        function setThemeMode(mode) {
+            themeMode = mode;
+            document.documentElement.classList.remove('theme-dark', 'theme-light');
+            if (mode === 'dark') document.documentElement.classList.add('theme-dark');
+            else if (mode === 'light') document.documentElement.classList.add('theme-light');
+            saveSettings();
+        }
+
+        function togglePreventSleep() {
+            preventSleep = document.getElementById('preventSleepInput').checked;
+            updateTimerSystem();
+            saveSettings();
+        }
+
+        function completeInitialSetup() {
+            isInitialSetupDone = true;
+            document.getElementById('initialSetupCard').style.display = 'none';
+        }
+
+        function showAddFixedTimeMode() {
+            document.getElementById('showAddFixedTimeBtn').style.display = 'none';
+            document.getElementById('addFixedTimeInputGroup').style.display = 'flex';
+            document.getElementById('fixedTimeInput').focus();
+        }
+
+        function hideAddFixedTimeMode() {
+            document.getElementById('showAddFixedTimeBtn').style.display = 'flex';
+            document.getElementById('addFixedTimeInputGroup').style.display = 'none';
+            document.getElementById('fixedTimeInput').value = '';
+        }
+
+        function addFixedTime() {
+            const input = document.getElementById('fixedTimeInput');
+            if (input.value && !fixedTimes.includes(input.value)) {
+                fixedTimes.push(input.value);
+                fixedTimes.sort();
+                updateFixedTimesList();
+                input.value = '';
+                recalculateNextNotificationTime();
+                hideAddFixedTimeMode();
+            } else if (!input.value) {
+                hideAddFixedTimeMode();
+            }
+        }
+
+        function removeFixedTime(time, event) {
+            const tag = event.target.closest('.time-tag');
+            if (!tag) return;
+            fixedTimes = fixedTimes.filter(t => t !== time);
+            tag.classList.add('deleted');
+            tag.style.backgroundColor = 'var(--color-control-bg)';
+            tag.style.color = 'var(--color-text-secondary)';
+            tag.style.boxShadow = 'none';
+            tag.innerHTML = `
+                <span style="opacity: 0.7; font-size: 13px;">${time} を削除しました</span>
+                <button onclick="undoDelete('${time}')" style="margin-left: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 4px; padding: 2px 8px; cursor: pointer; color: var(--color-text); font-size: 12px;">↺ 元に戻す</button>
+            `;
+            setTimeout(() => {
+                if (tag.parentNode && tag.classList.contains('deleted')) {
+                    tag.remove();
+                }
+            }, 8000);
+            recalculateNextNotificationTime();
+        }
+
+        function undoDelete(time) {
+            if (!fixedTimes.includes(time)) {
+                fixedTimes.push(time);
+                fixedTimes.sort();
+                updateFixedTimesList();
+                recalculateNextNotificationTime();
+            }
+        }
+
+        function updateFixedTimesList() {
+            const list = document.getElementById('fixedTimesList');
+            list.innerHTML = '';
+            fixedTimes.forEach(time => {
+                const tag = document.createElement('div');
+                tag.className = 'time-tag';
+                tag.style.backgroundColor = primaryColor;
+                tag.style.color = textColor;
+                const clockIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
+                tag.innerHTML = `${clockIcon}${time} <button onclick="removeFixedTime('${time}', event)">×</button>`;
+                list.appendChild(tag);
+            });
+        }
+
+        function recalculateNextNotificationTime(isRetroactive = false, skipSync = false) {
+            const now = new Date();
+            const nextFixed = getNextFixedTime(now);
+
+            if (lastCompletedTime) {
+                const cooldownEnd = new Date(lastCompletedTime.getTime() + cooldownMinutes * 60 * 1000);
+                const firstResetAfterTouch = getNextFixedTime(lastCompletedTime);
+
+                if (firstResetAfterTouch && firstResetAfterTouch < cooldownEnd) {
+                    nextNotificationTime = firstResetAfterTouch;
+                    lastScheduledSource = 'fixed';
+                } else {
+                    nextNotificationTime = cooldownEnd;
+                    lastScheduledSource = 'completed';
+                }
+            } else {
+                if (fixedTimes.length === 0) {
+                    nextNotificationTime = null;
+                } else {
+                    nextNotificationTime = nextFixed;
+                    lastScheduledSource = 'fixed';
+                }
+            }
+
+            lastNotifiedTime = null;
+            pendingAutoUpdateTime = null;
+            isDelayedNotification = false;
+            document.getElementById('completedBtn').classList.remove('btn-emphasis');
+            document.getElementById('autoUpdateBar').style.width = '0%';
+
+            // 遡及登録時、すでに時間を過ぎていたら即座に「通知済み」にしてサイレント待機モードにする
+            if (isRetroactive && nextNotificationTime && nextNotificationTime <= now) {
+                lastNotifiedTime = nextNotificationTime;
+                isDelayedNotification = true;
+            }
+
+            saveSettings();
+            updateTimerLogic(true);
+
+            // モバイルの場合はCloudflare Workerにスケジュールを同期する
+            // ★自動更新(skipSync=true)の場合は、Worker側が既にチェーンを開始しているため同期をスキップして二重登録を防ぐ
+            if (isMobile && nextNotificationTime && !isRetroactive && !skipSync) {
+                syncScheduleToWorker(nextNotificationTime);
+            }
+        }
+
+        function markCompleted(isAuto = false) {
+            const now = new Date();
+            lastCompletedTime = now;
+            recalculateNextNotificationTime(isAuto);
+            if (!isAuto && notifyOnComplete) showNotification(completeTitle, `>> ${formatTime(nextNotificationTime)}`, 'complete');
+        }
+
+        async function resetTimer() {
+            // モバイルの場合は Worker 側のスケジュールも停止させる
+            if (isMobile) {
+                const subStr = localStorage.getItem('pushSubscription');
+                if (subStr) {
+                    try {
+                        const subscription = JSON.parse(subStr);
+                        await fetch(`${WORKER_URL}/stop`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ subscription })
+                        });
+                        console.log('Worker Sync: Stopped');
+                    } catch (e) {
+                        console.error('Worker Stop Sync Failed:', e);
+                    }
+                }
+            }
+            // タイマーを完全に停止する（次の予定をクリア）
+            lastCompletedTime = null;
+            nextNotificationTime = null;
+            lastNotifiedTime = null;
+            pendingAutoUpdateTime = null;
+            isDelayedNotification = false;
+            saveSettings();
+            updateTimerLogic(true);
+        }
+
+        function getNextFixedTime(fromTime) {
+            if (fixedTimes.length === 0) return null;
+            const from = new Date(fromTime);
+            const today = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+            let nextTime = null;
+            for (const timeStr of fixedTimes) {
+                const [h, m] = timeStr.split(':').map(Number);
+                const candidate = new Date(today);
+                candidate.setHours(h, m, 0, 0);
+                if (candidate > from) {
+                    if (!nextTime || candidate < nextTime) nextTime = candidate;
+                }
+            }
+            if (!nextTime) {
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const [h, m] = fixedTimes[0].split(':').map(Number);
+                nextTime = new Date(tomorrow);
+                nextTime.setHours(h, m, 0, 0);
+            }
+            return nextTime;
+        }
+
+        function getPreviousFixedTime(fromTime) {
+            if (fixedTimes.length === 0) return null;
+            const from = new Date(fromTime);
+            const today = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+            let prevTime = null;
+
+            for (const timeStr of fixedTimes) {
+                const [h, m] = timeStr.split(':').map(Number);
+                const candidate = new Date(today);
+                candidate.setHours(h, m, 0, 0);
+                if (candidate < from) {
+                    if (!prevTime || candidate > prevTime) prevTime = candidate;
+                }
+            }
+
+            if (!prevTime) {
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                const lastTimeStr = fixedTimes[fixedTimes.length - 1];
+                const [h, m] = lastTimeStr.split(':').map(Number);
+                prevTime = new Date(yesterday);
+                prevTime.setHours(h, m, 0, 0);
+            }
+            return prevTime;
+        }
+
+        function updateTimerLogic(forceUpdate = false) {
+            const now = new Date();
+            const lastTouchText = lastCompletedTime ? formatTime(lastCompletedTime) : '00:00:00';
+            const nextTouchText = nextNotificationTime ? formatTime(nextNotificationTime) : '00:00:00';
+
+            const updateInfo = (last, status, next) => {
+                updateText('lastTouchDisplay', `前回 ${last}`);
+                updateText('statusDisplay', status);
+                updateText('nextTouchDisplay', `次回 ${next}`);
+
+                const isReset = (!lastCompletedTime);
+                document.getElementById('timer').classList.toggle('placeholder', isReset);
+                document.getElementById('lastTouchDisplay').classList.toggle('placeholder', isReset);
+            };
+
+            if (!nextNotificationTime) {
+                updateText('timer', '00:00:00');
+                updateInfo('00:00:00', 'タイマー未設定', '未設定');
+                updateDynamicTitle();
+                return;
+            }
+
+            const timeSinceScheduled = now - nextNotificationTime;
+            const actionWaitMs = actionTimeSeconds * 1000;
+
+            // 1. 通知の発信判定
+            if (timeSinceScheduled >= 0) {
+                if (!lastNotifiedTime || lastNotifiedTime.getTime() !== nextNotificationTime.getTime()) {
+                    // 遅延判定（自動登録を止める閾値）: PCは60秒、モバイルは300秒(Androidのスリープ考慮)
+                    const delayThreshold = isMobile ? 300000 : 60000;
+                    isDelayedNotification = (timeSinceScheduled > delayThreshold);
+
+                    // モバイルでは Worker が Push 通知を送るため、ローカル通知は発火しない
+                    if (!isMobile) {
+                        showNotification(remindTitle, remindBody, 'remind');
+                    }
+                    lastNotifiedTime = nextNotificationTime;
+                    saveSettings();
+                }
+            }
+
+            // 2. 手動操作待ちモード（または遡及登録後の即時待機）
+            if (isDelayedNotification || (!autoUpdateNext && timeSinceScheduled >= 0)) {
+                updateText('timer', '00:00:00');
+                updateInfo(lastTouchText, "タッチ待機中...", nextTouchText);
+                updateDynamicTitle();
+                document.getElementById('completedBtn').classList.add('btn-emphasis');
+                document.getElementById('autoUpdateBar').style.width = '0%';
+                return;
+            }
+
+            // 3. リセット状態
+            if (!lastCompletedTime && timeSinceScheduled < 0) {
+                updateText('timer', '00:00:00');
+                updateInfo('00:00:00', '', nextTouchText);
+                updateDynamicTitle();
+                document.getElementById('autoUpdateBar').style.width = '0%';
+                return;
+            }
+
+            // 4. 操作待機中
+            if (timeSinceScheduled >= 0 && timeSinceScheduled < actionWaitMs) {
+                const remainingWait = Math.ceil((actionWaitMs - timeSinceScheduled) / 1000);
+                const progress = (timeSinceScheduled / actionWaitMs) * 100;
+
+                updateText('timer', '00:00:00');
+                updateInfo(lastTouchText, `カフェタッチ中... (${remainingWait}s)`, nextTouchText);
+                updateDynamicTitle();
+                document.getElementById('autoUpdateBar').style.width = `${progress}%`;
+                return;
+            }
+
+            // 5. 自動更新の実行
+            if (timeSinceScheduled >= actionWaitMs) {
+                document.getElementById('autoUpdateBar').style.width = '100%';
+                lastCompletedTime = new Date(nextNotificationTime.getTime() + actionWaitMs);
+                // 自動更新(skipSync=true)を渡して Worker への二重送信を防止
+                recalculateNextNotificationTime(false, true);
+                return;
+            }
+
+            // 6. 通常カウントダウン中
+            const diff = nextNotificationTime - now;
+            const cooldownMs = cooldownMinutes * 60 * 1000;
+            const timeSinceLastComplete = lastCompletedTime ? (now - lastCompletedTime) : Infinity;
+
+            let canTouchAnytime = false;
+            if (lastScheduledSource === 'fixed' && diff > cooldownMs && timeSinceLastComplete > cooldownMs) {
+                canTouchAnytime = true;
+            }
+            if (lastCompletedTime) {
+                const nextResetAfterTouch = getNextFixedTime(lastCompletedTime);
+                if (nextResetAfterTouch && nextResetAfterTouch <= now) {
+                    canTouchAnytime = true;
+                }
+            }
+
+            if (canTouchAnytime) {
+                updateText('timer', '00:00:00');
+                updateInfo(lastTouchText, "いつでもタッチ可能", nextTouchText);
+                updateDynamicTitle();
+                document.getElementById('autoUpdateBar').style.width = '0%';
+                return;
+            }
+
+            const h = Math.floor(diff / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            const s = Math.floor((diff % 60000) / 1000);
+            updateText('timer', `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+            updateInfo(lastTouchText, "", nextTouchText);
+            updateDynamicTitle();
+            document.getElementById('autoUpdateBar').style.width = '0%';
+        }
+
+        // 動的なタイトル更新
+        function updateDynamicTitle() {
+            const baseTitle = "カフェタッチリマインダー";
+            if (!showTitleTimer || !isInitialSetupDone || !nextNotificationTime) {
+                if (document.title !== baseTitle) document.title = baseTitle;
+                return;
+            }
+
+            const now = new Date();
+            const timeSinceScheduled = now - nextNotificationTime;
+            const cooldownMs = cooldownMinutes * 60 * 1000;
+            const timeSinceLastComplete = lastCompletedTime ? (now - lastCompletedTime) : Infinity;
+
+            let isTouchTiming = (timeSinceScheduled >= 0) ||
+                (lastScheduledSource === 'fixed' && (nextNotificationTime - now) > cooldownMs && timeSinceLastComplete > cooldownMs) ||
+                (lastCompletedTime && getNextFixedTime(lastCompletedTime) <= now);
+
+            if (isTouchTiming) {
+                if (document.title !== `☕ ${baseTitle}`) document.title = `☕ ${baseTitle}`;
+            } else {
+                const diff = nextNotificationTime - now;
+                const totalMinutes = Math.ceil(diff / 60000);
+                const newTitle = `(${totalMinutes}分) ${baseTitle}`;
+                if (document.title !== newTitle) document.title = newTitle;
+            }
+        }
+
+        function updateText(id, text) {
+            const el = document.getElementById(id);
+            if (el && el.textContent !== text) el.textContent = text;
+        }
+
+        function formatTime(date) {
+            const h = String(date.getHours()).padStart(2, '0');
+            const m = String(date.getMinutes()).padStart(2, '0');
+            const s = String(date.getSeconds()).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        async function enableNotifications() {
+            if (!("Notification" in window)) {
+                alert('このブラウザは通知に対応していません。');
+                return;
+            }
+
+            try {
+                // 先に権限をリクエストする（これが最もプロンプトが出やすい順序）
+                const permission = await Notification.requestPermission();
+                updateNotificationStatus();
+
+                if (permission === 'granted') {
+                    let reg = null;
+                    if ('serviceWorker' in navigator) {
+                        reg = await navigator.serviceWorker.register('sw.js');
+                    }
+
+                    // Push Managerの購読処理（モバイル・PC問わず一度しておく）
+                    if (reg && reg.pushManager) {
+                        try {
+                            const subscription = await reg.pushManager.subscribe({
+                                userVisibleOnly: true,
+                                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                            });
+                            localStorage.setItem('pushSubscription', JSON.stringify(subscription));
+                        } catch (pushErr) {
+                            console.error('Push Manager Subscribe Error:', pushErr);
+                        }
+                    }
+
+                    showNotification('通知が有効になりました！', 'これからカフェタッチの時間をお知らせします♪');
+                } else if (permission === 'denied') {
+                    alert('通知がブロックされています。ブラウザの設定（URL横の鍵マークなど）から通知を許可してください。');
+                }
+            } catch (err) {
+                console.error('Notification error:', err);
+            }
+        }
+
+        function toggleMute() {
+            muteNotifications = !muteNotifications;
+            updateMuteUI();
+            saveSettings();
+        }
+
+        function updateMuteUI() {
+            const btn = document.getElementById('muteBtn');
+            const iconOn = document.getElementById('bellIconOn');
+            const iconOff = document.getElementById('bellIconOff');
+
+            if (muteNotifications) {
+                btn.classList.add('muted');
+                btn.classList.remove('hover-pause');
+                iconOn.style.display = 'none';
+                iconOff.style.display = 'block';
+                btn.title = '通知を再開';
+                btn.style.color = '#e34a45'; // ミュート時は赤色に固定
+            } else {
+                btn.classList.remove('muted');
+                btn.classList.add('hover-pause');
+                iconOn.style.display = 'block';
+                iconOff.style.display = 'none';
+                btn.title = '通知を一時停止';
+                btn.style.color = primaryColor; // 通常時はテーマカラーに戻す
+            }
+        }
+
+        function toggleRetroactiveMode() {
+            const panel = document.getElementById('retroactivePanel');
+            const btn = document.getElementById('retroactiveModeBtn');
+            const slider = document.getElementById('retroactiveSlider');
+            const rangeLabel = document.getElementById('retroactiveRangeLabel');
+            const isHidden = panel.style.display === 'none' || panel.style.display === '';
+
+            if (isHidden) {
+                panel.style.display = 'block';
+                btn.style.display = 'none';
+                retroactiveBaseTime = new Date();
+                const now = retroactiveBaseTime;
+                const lastReset = getPreviousFixedTime(now);
+                let minMinutes = cooldownMinutes;
+
+                let h_label = Math.floor(minMinutes / 60);
+                let m_label = minMinutes % 60;
+                let labelText = "";
+                if (h_label > 0) labelText += h_label + "時間";
+                if (m_label > 0) labelText += m_label + "分";
+                let resetInfo = `(過去${labelText}以内)`;
+
+                if (lastReset) {
+                    const diffToReset = Math.floor((now - lastReset) / 60000);
+                    if (diffToReset < cooldownMinutes) {
+                        minMinutes = diffToReset;
+                        resetInfo = `（${formatTime(lastReset).substring(0, 5)}のリセット以降）`;
+                    }
+                }
+
+                slider.min = -minMinutes;
+
+                const currentH = Math.floor(minMinutes / 60);
+                const currentM = minMinutes % 60;
+                let currentLabel = "";
+                if (currentH > 0) currentLabel += currentH + "時間";
+                if (currentM > 0) currentLabel += currentM + "分";
+                document.getElementById('retroactiveSliderLabelMin').textContent = currentLabel + "前";
+
+                rangeLabel.textContent = `前回タッチした時刻を設定してください ${resetInfo}`;
+                const h = String(now.getHours()).padStart(2, '0');
+                const m = String(now.getMinutes()).padStart(2, '0');
+                document.getElementById('retroactiveTimeInput').value = `${h}:${m}`;
+                slider.value = 0;
+            } else {
+                panel.style.display = 'none';
+                btn.style.display = 'block';
+                retroactiveBaseTime = null;
+            }
+        }
+
+        function syncTimeFromSlider() {
+            const slider = document.getElementById('retroactiveSlider');
+            const timeInput = document.getElementById('retroactiveTimeInput');
+            const minutesAgo = parseInt(slider.value);
+            const base = retroactiveBaseTime || new Date();
+            const targetTime = new Date(base.getTime() + minutesAgo * 60 * 1000);
+            const h = String(targetTime.getHours()).padStart(2, '0');
+            const m = String(targetTime.getMinutes()).padStart(2, '0');
+            timeInput.value = `${h}:${m}`;
+        }
+
+        function syncSliderFromTime() {
+            const slider = document.getElementById('retroactiveSlider');
+            const timeInput = document.getElementById('retroactiveTimeInput');
+            const base = retroactiveBaseTime || new Date();
+            const [h, m] = timeInput.value.split(':').map(Number);
+            let targetTime = new Date(base);
+            targetTime.setHours(h, m, 0, 0);
+            if (targetTime > base) targetTime.setDate(targetTime.getDate() - 1);
+            const diffMs = targetTime - base;
+            const diffMinutes = Math.round(diffMs / 60000);
+            const min = parseInt(slider.min);
+            const max = parseInt(slider.max);
+            if (diffMinutes < min) {
+                slider.value = min;
+                syncTimeFromSlider();
+            } else if (diffMinutes > max) {
+                slider.value = max;
+                syncTimeFromSlider();
+            } else {
+                slider.value = diffMinutes;
+            }
+        }
+
+        function confirmRetroactive() {
+            const timeInput = document.getElementById('retroactiveTimeInput');
+            const slider = document.getElementById('retroactiveSlider');
+            const base = retroactiveBaseTime || new Date();
+            const [h, m] = timeInput.value.split(':').map(Number);
+            let completedTime = new Date(base);
+            completedTime.setHours(h, m, 0, 0);
+            if (completedTime > base) completedTime.setDate(completedTime.getDate() - 1);
+            const minAllowed = parseInt(slider.min);
+            const diffMinutes = Math.round((completedTime - base) / 60000);
+            if (diffMinutes < minAllowed) {
+                completedTime = new Date(base.getTime() + minAllowed * 60 * 1000);
+            } else if (diffMinutes > 0) {
+                completedTime = base;
+            }
+            lastCompletedTime = completedTime;
+            // 遡及登録モードとして再計算（即時通知をブロック）
+            // 遡及登録時は、新しい時刻に基づいて Worker に通知スケジュールを上書き送信する
+            recalculateNextNotificationTime(true, false);
+            toggleRetroactiveMode();
+            if (notifyOnComplete) {
+                showNotification(completeTitle, `>> ${formatTime(nextNotificationTime)} (過去完了登録)`, 'complete');
+            }
+        }
+
+        async function resetApp() {
+            if (confirm("すべての設定（通知の購読やサービスワーカーを含む）を削除しますか？\n\n※ブラウザ自体の「通知許可」をリセットするには、URL横の鍵アイコンなどから手動で行う必要があります。")) {
+                // 1. プッシュ通知の購読解除を試行
+                if ('serviceWorker' in navigator) {
+                    try {
+                        const registrations = await navigator.serviceWorker.getRegistrations();
+                        for (const registration of registrations) {
+                            // プッシュ購読があれば解除
+                            const subscription = await registration.pushManager.getSubscription();
+                            if (subscription) {
+                                await subscription.unsubscribe();
+                                console.log('Push subscription removed');
+                            }
+                            // サービスワーカーの登録解除
+                            await registration.unregister();
+                            console.log('Service Worker unregistered');
+                        }
+                    } catch (e) {
+                        console.error('Reset failed during SW/Push removal:', e);
+                    }
+                }
+
+                // 2. localStorageの削除
+                localStorage.clear();
+
+                // 3. リロードして初期状態へ
+                alert("すべてのデータを削除しました。\n通知権限を完全に戻したい場合は、ブラウザの設定から手動でリセットしてください。");
+                location.reload();
+            }
+        }
+
+        function updateNotificationStatus() {
+            const granted = ("Notification" in window) && (Notification.permission === 'granted');
+            document.documentElement.style.setProperty('--notification-request-display', granted ? 'none' : 'block');
+            const statusInSettings = document.getElementById('notificationStatusInSettings');
+            if (statusInSettings) {
+                let statusText = granted ? '✓ 通知が有効になっています' : '通知が無効です';
+                if (granted && isStandalone) {
+                    statusText = '✓ このPWAで通知が有効です';
+                }
+                statusInSettings.textContent = statusText;
+                statusInSettings.style.color = granted ? '' : 'var(--color-slate-500)';
+            }
+        }
+
+        async function sendTestNotification() {
+            if (Notification.permission !== 'granted') return alert('先に通知を許可してください');
+
+            // モバイルの場合は Cloudflare Worker 経由のテスト送信
+            if (isMobile) {
+                const subStr = localStorage.getItem('pushSubscription');
+                if (!subStr) {
+                    alert('【診断】Push通知の購読情報がありません。\n\nページを再読み込みしてから、もう一度お試しください。\n\nそれでもダメな場合は、設定 → 「通知を許可する」ボタンを押してから再度お試しください。');
+                    return;
+                }
+
+                try {
+                    const subscription = JSON.parse(subStr);
+                    const { requireInteraction: finalRequireInteraction, enableVibration: finalEnableVibration } = getNotificationSettings();
+
+                    const resp = await fetch(`${WORKER_URL}/test`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            subscription,
+                            payload: {
+                                title: remindTitle,
+                                body: remindBody + " (Push Test)",
+                                requireInteraction: finalRequireInteraction,
+                                enableVibration: finalEnableVibration
+                            }
+                        })
+                    });
+
+                    if (resp.ok) {
+                        console.log('Push Test Sent OK');
+                        // 成功した場合は数秒後にPush通知が届くはず。ローカル通知は出さない。
+                        return;
+                    } else {
+                        const errText = await resp.text();
+                        alert(`【診断】Worker がエラーを返しました (${resp.status}):\n\n${errText.substring(0, 300)}`);
+                        return;
+                    }
+                } catch (e) {
+                    alert(`【診断】Worker への通信に失敗しました:\n\n${e.message}`);
+                    console.error('Push test failed', e);
+                    return;
+                }
+            }
+
+            // PC（ローカル実行）用のテスト通知
+            showNotification(remindTitle, remindBody + " (デスクトップ版テスト)", 'remind');
+        }
+
+        function showNotification(title, body, isTest = false) { // isTest は type='test' の簡易フラグとしても機能(後方互換)
+            const type = (isTest === true || isTest === 'test') ? 'test' : (isTest === 'remind' ? 'remind' : (isTest === 'complete' ? 'complete' : 'normal'));
+
+            if (muteNotifications && type !== 'test') return;
+            if (Notification.permission !== 'granted') return;
+
+            // PC向け設定値の取得
+            const keepNotification = document.getElementById('requireInteractionInput') ? document.getElementById('requireInteractionInput').checked : false;
+            const preventFocus = document.getElementById('preventFocusOnNotificationClickInput') ? document.getElementById('preventFocusOnNotificationClickInput').checked : false;
+
+            // リマインド通知かつ設定ONの時だけ requireInteraction: true (PCのみ)
+            // モバイルの場合は requireInteraction: true 固定(またはSW依存)で、アプリを開く挙動が優先される
+            const shouldRequireInteractionPC = (type === 'remind' && keepNotification);
+
+            const options = {
+                body: body,
+                tag: 'cafe-touch-notification',
+                renotify: true,
+                // Androidでは音なしにするとポップアップ自体が消えるため、モバイルなら常にfalse、PCなら設定に従う
+                silent: isMobile ? false : !notificationSound,
+                requireInteraction: isMobile ? true : shouldRequireInteractionPC
+            };
+
+            if (isMobile) {
+                // Android: Service Worker経由
+                options.icon = 'favicon-96x96.png';
+                options.badge = 'favicon-96x96.png';
+                options.vibrate = (notificationSound) ? [200, 100, 200] : [];
+
+                navigator.serviceWorker.getRegistration().then(reg => {
+                    if (reg) {
+                        reg.showNotification(title, options);
+                    } else {
+                        // SWがない場合のフォールバック（PC版と同じロジック）
+                        try {
+                            const n = new Notification(title, options);
+                            n.onclick = (e) => { e.preventDefault(); window.focus(); };
+                        } catch (e) {
+                            options.requireInteraction = false;
+                            const n = new Notification(title, options);
+                            n.onclick = (e) => { e.preventDefault(); window.focus(); };
+                        }
+                    }
+                }).catch(err => {
+                    console.error('SW Notification Error:', err);
+                });
+            } else {
+                // PC: 新しいロジック適用
+                try {
+                    const n = new Notification(title, options);
+                    n.onclick = (e) => {
+                        e.preventDefault();
+
+                        if (shouldRequireInteractionPC) { // 常駐設定ONならクリックで完了
+                            markCompleted();
+                            if (!preventFocus) window.focus();
+                        } else {
+                            window.focus(); // 通常はフォーカス
+                        }
+                        n.close();
+                    };
+                } catch (e) {
+                    options.requireInteraction = false;
+                    const n = new Notification(title, options);
+                    n.onclick = (e) => { e.preventDefault(); window.focus(); n.close(); };
+                }
+            }
+        }
+
+        function setColor(color) {
+            primaryColor = color;
+            document.getElementById('colorPicker').value = color;
+            applyPrimaryColor();
+            saveSettings();
+        }
+
+        function setTextColor(color) {
+            textColor = color;
+            applyPrimaryColor();
+            saveSettings();
+        }
+
+        function applyPrimaryColor() {
+            document.documentElement.style.setProperty('--color-teal-500', primaryColor);
+            document.documentElement.style.setProperty('--color-teal-300', primaryColor);
+            document.documentElement.style.setProperty('--initial-color', primaryColor);
+            document.documentElement.style.setProperty('--initial-text-color', textColor);
+
+            // ブラウザのテーマカラーも更新
+            const themeMeta = document.getElementById('themeColorMeta');
+            if (themeMeta) themeMeta.setAttribute('content', primaryColor);
+
+            let r = 0, g = 0, b = 0;
+            if (primaryColor.startsWith('#')) {
+                r = parseInt(primaryColor.slice(1, 3), 16);
+                g = parseInt(primaryColor.slice(3, 5), 16);
+                b = parseInt(primaryColor.slice(5, 7), 16);
+            }
+            document.documentElement.style.setProperty('--color-teal-500-rgb', `${r}, ${g}, ${b}`);
+
+            updateFixedTimesList();
+            document.getElementById('timer').style.color = primaryColor;
+            document.querySelector('h1').style.color = primaryColor;
+
+            // ミュート状態に応じてボタンの色を適用（インラインスタイルの優先順位を管理）
+            const muteBtn = document.getElementById('muteBtn');
+            if (muteBtn) {
+                muteBtn.style.color = muteNotifications ? '#e34a45' : primaryColor;
+            }
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            updateNotificationStatus();
+            if (document.visibilityState === 'visible') {
+                setWorkerRate(200);
+                updateTimerLogic(true);
+            } else {
+                setWorkerRate(1000);
+            }
+        });
+
+        // ウィンドウにフォーカスが戻った際にも権限状態をチェック
+        window.addEventListener('focus', () => {
+            updateNotificationStatus();
+        });
+
+        window.addEventListener('load', () => {
+            loadSettings();
+
+            // モバイル環境では無意味・機能しない設定を隠し、自動更新をオフにする
+            if (isMobile) {
+                // Worker が自動次回登録を処理するため、autoUpdateNext はユーザーの設定に従う
+
+                const hideIds = [
+                    'notificationSoundInput', // 通知音(OS設定が優先ため)
+                    'muteBtn',                // ミュートボタン(スマホでは制御困難なため非表示)
+                    'preventFocusContainer'    // ウィンドウ非表示(PC用)
+                ];
+
+                hideIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        const group = el.closest('.checkbox-group') || el.closest('.form-group');
+                        if (group) {
+                            group.style.display = 'none';
+                            const helpText = group.nextElementSibling;
+                            if (helpText && helpText.classList.contains('help-text')) helpText.style.display = 'none';
+                        } else {
+                            // checkbox-group でも form-group でもない要素（ボタン等）は直接非表示
+                            el.style.display = 'none';
+                        }
+                    }
+                });
+
+                // 操作説明の整理：共通化し、一部はスマホでもそのまま表示する
+                // スマホ固有の非表示にしていた説明も、今回は読ませるために一部表示を解除する
+                // （instructionAutoUpdate などはそのまま残し、設定からいじるものは元のまま）
+
+                // モバイルPWAモード(Standalone)なら専用の通知設定ガイドを表示
+                if (isStandalone) {
+                    const titleTimerInput = document.getElementById('showTitleTimerInput');
+                    if (titleTimerInput) {
+                        const group = titleTimerInput.closest('.checkbox-group');
+                        if (group) {
+                            group.style.display = 'none';
+                            const helpText = group.nextElementSibling;
+                            if (helpText && helpText.classList.contains('help-text')) helpText.style.display = 'none';
+                        }
+                    }
+
+                    const pwaGuide = document.getElementById('pwaAdvancedSettings');
+                    if (pwaGuide) {
+                        pwaGuide.style.display = 'block';
+                    }
+                }
+
+            }
+
+            // Service Workerの自動登録
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js').then(async (reg) => {
+                    console.log('Service Worker Registered');
+                    updateNotificationStatus();
+
+                    // 通知が許可済みかつPush購読が未登録なら、自動でPush購読を行う
+                    if (Notification.permission === 'granted' && !localStorage.getItem('pushSubscription')) {
+                        if (reg.pushManager) {
+                            try {
+                                const subscription = await reg.pushManager.subscribe({
+                                    userVisibleOnly: true,
+                                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                                });
+                                localStorage.setItem('pushSubscription', JSON.stringify(subscription));
+                                console.log('Push subscription auto-registered:', subscription.endpoint);
+                            } catch (pushErr) {
+                                console.error('Auto Push Subscribe Error:', pushErr);
+                            }
+                        }
+                    }
+                }).catch(err => console.error('SW Registration failed:', err));
+            }
+            document.getElementById('initialSetupCard').addEventListener('click', (e) => {
+                if (e.target.id === 'initialSetupConfirmBtn') {
+                    const morningInput = document.getElementById('initialMorningTime');
+                    const eveningInput = document.getElementById('initialEveningTime');
+                    const actionInput = document.getElementById('initialActionTime');
+                    const times = [];
+                    if (morningInput.value) times.push(morningInput.value);
+                    if (eveningInput.value) times.push(eveningInput.value);
+                    fixedTimes = times.sort();
+                    actionTimeSeconds = parseInt(actionInput.value) || 0;
+                    document.getElementById('actionTimeInput').value = actionTimeSeconds;
+                    completeInitialSetup();
+                    updateFixedTimesList();
+                    recalculateNextNotificationTime();
+                }
+            });
+            document.getElementById('showTitleTimerInput').addEventListener('change', saveSettingsAndRecalculate);
+            document.getElementById('notifyOnCompleteInput').addEventListener('change', saveSettings);
+            document.getElementById('notificationSoundInput').addEventListener('change', saveSettings);
+            document.getElementById('requireInteractionInput').addEventListener('change', (e) => {
+                toggleFocusSetting();
+                saveSettings();
+            });
+            document.getElementById('preventFocusOnNotificationClickInput').addEventListener('change', saveSettings);
+            document.getElementById('autoUpdateNextInput').addEventListener('change', saveSettings);
+        });
+    </script>
+</body>
+
+</html>

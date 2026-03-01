@@ -1,0 +1,30 @@
+# Cafe Touch Reminder .gitignore
+
+# Cloudflare & Node.js
+node_modules/
+.wrangler/
+dist/
+.dev.vars
+.env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Backups & Redundant Files
+backups/
+Cafe Touch Reminder (*).html
+index_old.html
+* (1).html
+* (2).html
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+.gemini/

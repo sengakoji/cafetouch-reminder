@@ -1,0 +1,30 @@
+name = "cafe-push-worker"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# Enable Node.js compatibility so web-push works
+compatibility_flags = ["nodejs_compat"]
+
+# Configure Queue binding Producer
+[[queues.producers]]
+binding = "PUSH_QUEUE"
+queue = "cafe-push-queue"
+
+# Configure Queue binding Consumer
+[[queues.consumers]]
+queue = "cafe-push-queue"
+max_batch_size = 10
+max_batch_timeout = 5 # seconds
+
+# Configure KV namespace for storing VAPID details and subscriptions
+[[kv_namespaces]]
+binding = "PUSH_STATUS"
+id = "467a9ae1636343f59830ffe936f20b6f"
+
+[vars]
+# ⚠️ セキュリティのため VAPID_PRIVATE_KEY はここには記述せず、
+# wrangler secret put VAPID_PRIVATE_KEY
+# コマンドを使用して Cloudflare に直接登録してください。
+# これにより GitHub 等にコードを上げても鍵が漏洩しなくなります。
+VAPID_PUBLIC_KEY = "BDhsA4_i9Dd6zh0p0QoGCL-tyXG1rTbmqz_1-l3KE0qtViJ01pS25EDZeaBGn0jnDR2YLTezFHX8qFcEPBNI4Lg"
+VAPID_SUBJECT = "mailto:example@example.com"
