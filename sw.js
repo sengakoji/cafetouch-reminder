@@ -1,16 +1,47 @@
 // Service Worker for PWA & Notification
 
+const CACHE_NAME = 'cafetouch-v1';
+const PRECACHE_URLS = [
+    './',
+    './index.html',
+    './site.webmanifest',
+    './favicon-96x96.png',
+    './apple-touch-icon.png',
+    './web-app-manifest-192x192.png',
+    './web-app-manifest-512x512.png',
+];
+
 self.addEventListener('install', (event) => {
+    // インストール時にコアアセットをキャッシュ
+    event.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
+    );
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    event.waitUntil(self.clients.claim());
+    // 古いキャッシュを削除
+    event.waitUntil(
+        caches.keys().then((keys) =>
+            Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+        ).then(() => self.clients.claim())
+    );
 });
 
-// PWAのインストール要件を満たすための空のfetchイベント
+// キャッシュファースト戦略（オフラインでも動作）
 self.addEventListener('fetch', (event) => {
-    // 何もしないが、存在することが重要です
+    // 外部APIリクエスト（workers.dev）はキャッシュしない
+    if (!event.request.url.startsWith(self.location.origin)) return;
+    // ナビゲーションリクエストは index.html を返す
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            caches.match('./index.html').then((cached) => cached || fetch(event.request))
+        );
+        return;
+    }
+    event.respondWith(
+        caches.match(event.request).then((cached) => cached || fetch(event.request))
+    );
 });
 
 self.addEventListener('notificationclick', (event) => {
