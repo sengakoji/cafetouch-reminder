@@ -906,6 +906,11 @@
                         <strong>ホーム画面に追加（インストール）</strong>すると、端末の振動や画面上部へのポップアップ通知がアプリごとに設定しやすくなります。
                         Android版Microsoft Edgeをお使いの方は、設定の項目が異なるため一時的にGoogle Chromeを使用してホーム画面に追加(インストール)することをお勧めします。
 
+                        <!-- Chrome限定インストールボタン (beforeinstallpromptが来た時のみ表示) -->
+                        <button id="pwaInstallBtn" class="btn btn-secondary"
+                            style="margin-top: 12px; padding: 10px; font-size: 13px; display: none;">
+                            📲 ホーム画面に追加する
+                        </button>
                     </div>
 
                     <label class="checkbox-group" style="margin-top: 12px;">
@@ -1220,6 +1225,41 @@
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
         const isAndroid = /Android/i.test(navigator.userAgent);
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        // Edge判定 (Edg/ で始まるEdge固有のUAを検出、Chrome UAも含むためChromeより先にチェック)
+        const isEdge = /Edg\//i.test(navigator.userAgent);
+        // Chrome判定 (EdgはChromeのUAも持つので除外)
+        const isChrome = /Chrome\//i.test(navigator.userAgent) && !isEdge;
+
+        // PWAインストールボタン（Chrome Android 限定）
+        let _pwaInstallPrompt = null;
+        const _pwaInstallBtn = document.getElementById('pwaInstallBtn');
+
+        // beforeinstallprompt は Chrome(Android) のみ発火する
+        // isEdge / isIOS / isStandalone のときはリスナーを無視またはボタンを出さない
+        window.addEventListener('beforeinstallprompt', (e) => {
+            if (isStandalone || isEdge || isIOS) return; // 対象外は無視
+            e.preventDefault();
+            _pwaInstallPrompt = e;
+            if (_pwaInstallBtn) _pwaInstallBtn.style.display = 'block';
+        });
+
+        if (_pwaInstallBtn) {
+            _pwaInstallBtn.addEventListener('click', async () => {
+                if (!_pwaInstallPrompt) return;
+                _pwaInstallPrompt.prompt();
+                const { outcome } = await _pwaInstallPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    _pwaInstallPrompt = null;
+                    _pwaInstallBtn.style.display = 'none';
+                }
+            });
+        }
+
+        window.addEventListener('appinstalled', () => {
+            _pwaInstallPrompt = null;
+            if (_pwaInstallBtn) _pwaInstallBtn.style.display = 'none';
+        });
+
         let retroactiveBaseTime = null;
 
         let worker = null;
