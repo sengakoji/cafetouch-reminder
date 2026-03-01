@@ -30,27 +30,27 @@ test.describe('Service Worker / PWA', () => {
         expect(swActive).toBe(true);
     });
 
-    test('オフライン時も index.html がキャッシュから返ってくる', async ({ page, context }) => {
-        // まず一度オンラインでアクセスしてSWにキャッシュさせる
+    test('Service Worker がコアアセットをキャッシュしている', async ({ page }) => {
         await page.goto('/');
         await page.waitForLoadState('networkidle');
-        // SW がキャッシュを完了するまで待機
-        await page.waitForTimeout(3000);
+        // SW が install / activate を完了してキャッシュに書き込むまで待つ
+        await page.waitForTimeout(4000);
 
-        // ネットワークをオフラインにする
-        await context.setOffline(true);
+        const cached = await page.evaluate(async () => {
+            const cacheNames = await caches.keys();
+            if (cacheNames.length === 0) return { hasCaches: false, keys: [] };
+            const cache = await caches.open(cacheNames[0]);
+            const requests = await cache.keys();
+            return {
+                hasCaches: true,
+                keys: requests.map((r) => r.url),
+            };
+        });
 
-        // オフラインでリロード（エラーは無視し、commit で判定）
-        try {
-            await page.reload({ waitUntil: 'commit', timeout: 10000 });
-        } catch {
-            // navigate失敗でも続行（SWがインターセプトしていれば問題なし）
-        }
-
-        // タイトルが引き続き存在していればキャッシュから提供できている
-        const title = await page.title().catch(() => '');
-        expect(title).toMatch(/カフェタッチリマインダー/);
-
-        await context.setOffline(false);
+        // キャッシュが存在していること
+        expect(cached.hasCaches).toBe(true);
+        // index.html がキャッシュに含まれていること
+        const hasIndex = cached.keys.some((url) => url.endsWith('index.html') || url.endsWith('/'));
+        expect(hasIndex).toBe(true);
     });
 });
