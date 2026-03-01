@@ -911,6 +911,18 @@
                             style="margin-top: 12px; padding: 10px; font-size: 13px; display: none;">
                             📲 ホーム画面に追加する
                         </button>
+
+                        <!-- iOS/iPadOS 向けガイド (JSで isIOS && !isStandalone の時のみ表示) -->
+                        <div id="iosInstallGuide"
+                            style="display: none; margin-top: 12px; padding: 10px; background: var(--color-surface); border-radius: 6px; border-left: 3px solid var(--color-teal-500); line-height: 1.6;">
+                            📤 ホーム画面への追加方法：<br>
+                            ブラウザの<strong>共有ボタン</strong>をタップして、
+                            <strong>「ホーム画面に追加」</strong>を選んでください。<br>
+                            <span style="color: var(--color-text-secondary); font-size: 12px;">
+                                ※ Safari では画面下部、Chrome・Edge では
+                                アドレスバー付近またはメニュー内にあります。
+                            </span>
+                        </div>
                     </div>
 
                     <label class="checkbox-group" style="margin-top: 12px;">
@@ -1225,9 +1237,9 @@
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
         const isAndroid = /Android/i.test(navigator.userAgent);
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-        // Edge判定 (Edg/ で始まるEdge固有のUAを検出、Chrome UAも含むためChromeより先にチェック)
-        const isEdge = /Edg\//i.test(navigator.userAgent);
-        // Chrome判定 (EdgはChromeのUAも持つので除外)
+        // Edge判定: PC版は Edg/、Android版は EdgA/ を使うのでスラッシュなしで両方キャッチ
+        const isEdge = /Edg/i.test(navigator.userAgent);
+        // Chrome判定 (EdgeはChromeのUAも持つので除外)
         const isChrome = /Chrome\//i.test(navigator.userAgent) && !isEdge;
 
         // PWAインストールボタン（Chrome Android 限定）
@@ -1259,6 +1271,12 @@
             _pwaInstallPrompt = null;
             if (_pwaInstallBtn) _pwaInstallBtn.style.display = 'none';
         });
+
+        // iOS/iPadOS向け: インストールボタンが使えないので共有経由の手順を案内
+        if (isIOS && !isStandalone) {
+            const iosGuide = document.getElementById('iosInstallGuide');
+            if (iosGuide) iosGuide.style.display = 'block';
+        }
 
         let retroactiveBaseTime = null;
 
