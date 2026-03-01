@@ -820,9 +820,9 @@
                     style="text-align: center; margin-bottom: 16px; font-weight: normal; opacity: 0.8;">前回タッチした時刻を設定してください</label>
 
                 <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-secondary" style="flex: 1; padding: 12px;"
+                    <button class="btn btn-secondary" style="flex: 2; padding: 12px;"
                         onclick="toggleRetroactiveMode()">キャンセル</button>
-                    <button class="btn btn-primary" style="flex: 2; padding: 12px;"
+                    <button class="btn btn-primary" style="flex: 3; padding: 12px;"
                         onclick="confirmRetroactive()">決定</button>
                 </div>
             </div>
@@ -882,14 +882,14 @@
                             <span style="font-size: 16px;">🚀</span> PWA 版 通知設定ガイド
                         </h4>
 
-                        <div class="help-text" style="margin-bottom: 12px; font-size: 13px;">
+                        <div class="help-text" style="margin-bottom: 12px; font-size: 13px;" id="pwaNotifDesc">
                             ポップアップ（画面上部への通知）やバイブレーション（振動）を有効にするには、OS側の設定変更が必要です。
                         </div>
 
                         <div id="pwaGuidePath" class="help-text"
                             style="padding: 10px; background: var(--color-surface); border-radius: 6px; border-left: 3px solid var(--color-teal-500); font-size: 13px; margin-bottom: 16px;">
                             💡 動作しない場合は、デバイスの<br>
-                            <span id="pwaOSPathText" style="font-weight: 500;">[設定] > [通知]</span><br>
+                            <span id="pwaOSPathText" style="font-weight: 500;">[設定] &gt; [通知]</span><br>
                             からポップアップ、バイブレーションをオンにしてください
                         </div>
 
@@ -1368,11 +1368,33 @@
                 osPathText.textContent = isIOS ? '[設定] > [通知] > [カフェタッチ]' : '[設定] > [アプリ] > [カフェタッチ] > [通知] > [全般]';
             }
 
+            // iOS向け: 「ポップアップ」→「通知バナー」に書き換え
+            const pwaNotifDesc = document.getElementById('pwaNotifDesc');
+            if (pwaNotifDesc && isIOS) {
+                pwaNotifDesc.textContent = '通知バナー（画面上部への通知）やサウンドを有効にするには、OS側の設定変更が必要です。';
+            }
+            const pwaGuidePath = document.getElementById('pwaGuidePath');
+            if (pwaGuidePath && isIOS) {
+                // iOS向けの案内文末尾を「通知バナー」に対応した表現へ変更
+                const guideEnd = pwaGuidePath.querySelector('span:not(#pwaOSPathText)');
+                if (!guideEnd) {
+                    // テキストノードを書き換え（最後のテキスト部分）
+                    const nodes = pwaGuidePath.childNodes;
+                    for (let i = nodes.length - 1; i >= 0; i--) {
+                        if (nodes[i].nodeType === Node.TEXT_NODE && nodes[i].textContent.trim()) {
+                            nodes[i].textContent = 'から通知バナー、サウンドをオンにしてください';
+                            break;
+                        }
+                    }
+                }
+            }
+
             // 振動設定の表示制御 (iOS PWAでは非表示)
             const vibContainer = document.getElementById('pwaVibrationContainer');
             if (vibContainer) {
                 vibContainer.style.display = (isIOS && isStandalone) ? 'none' : 'block';
             }
+
 
             if (!saved || !isInitialSetupDone) {
                 fixedTimes = fixedTimes.length > 0 ? fixedTimes : ['04:00', '16:00'];
