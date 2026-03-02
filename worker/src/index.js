@@ -438,7 +438,7 @@ export default {
           // --- おやすみタイム（通知保留）の判定と処理 ---
           const { sleepTimeEnabled, sleepTimeStart, sleepTimeEnd, sleepTimeNotifyOnEnd, sleepTimeAutoUpdate } = message.body;
 
-          let overrideAutoUpdate = true; // 基本は継続
+          let overrideAutoUpdate = autoUpdate; // 通常の自動更新設定を引き継ぐ
 
           if (sleepTimeEnabled && typeof sleepTimeStart === 'string' && typeof sleepTimeEnd === 'string') {
             const [sh, sm] = sleepTimeStart.split(':').map(Number);

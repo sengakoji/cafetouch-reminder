@@ -529,7 +529,15 @@
             display: none;
         }
 
+        .sleep-time-content {
+            display: none;
+        }
+
         .settings-toggle:checked~.settings-content {
+            display: block;
+        }
+
+        .sleep-time-toggle:checked~.sleep-time-content {
             display: block;
         }
 
@@ -1067,55 +1075,73 @@
 
                 <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
 
-                <div class="form-group show-only-pwa">
-                    <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
-                        <span>🌙 おやすみタイム（通知保留）</span>
+                <div class="form-group">
+                    <input type="checkbox" id="sleepTimeToggle" class="settings-toggle sleep-time-toggle">
+                    <div id="sleepTimeEnabledOuter"
+                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <label for="sleepTimeToggle" class="toggle-label"
+                            style="flex: 1; margin-bottom: 0; margin-right: 12px; padding: 10px;">
+                            🌙 おやすみタイム（通知保留）
+                        </label>
                         <label class="toggle-switch">
                             <input type="checkbox" id="sleepTimeEnabledInput"
-                                onchange="toggleSleepTimeFields(); saveSettingsAuto()">
+                                onchange="syncSleepTimeEnabled(this.checked); saveSettingsAndRecalculate()">
                             <span class="slider"></span>
                         </label>
-                    </label>
+                    </div>
                     <div class="help-text">指定した時間帯は通知を停止し、おやすみ明けに遅延して通知します</div>
 
-                    <div id="sleepTimeFields"
-                        style="margin-top: 16px; padding: 16px; background: var(--color-surface); border-radius: 8px; border: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 16px; opacity: 0.5; pointer-events: none; transition: opacity 0.3s ease;">
-                        <div style="display: flex; gap: 12px; align-items: center;">
-                            <div style="flex: 1;">
-                                <label
-                                    style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px;">開始時刻</label>
-                                <input type="time" id="sleepTimeStartInput" style="height: 44px; width: 100%;"
-                                    onchange="saveSettingsAuto()">
-                            </div>
-                            <span style="color: var(--color-text-secondary);">～</span>
-                            <div style="flex: 1;">
-                                <label
-                                    style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px;">終了時刻</label>
-                                <input type="time" id="sleepTimeEndInput" style="height: 44px; width: 100%;"
-                                    onchange="saveSettingsAuto()">
-                            </div>
-                        </div>
+                    <div class="sleep-time-content">
+                        <div id="sleepTimeFields"
+                            style="margin-top: 16px; padding: 16px; background: var(--color-surface); border-radius: 8px; border: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 16px; transition: opacity 0.3s ease;">
 
-                        <label
-                            style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
-                            <span style="font-size: 14px;">おやすみ明けに通知を送る</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="sleepTimeNotifyOnEndInput" checked
-                                    onchange="toggleSleepTimeAutoUpdate(); saveSettingsAuto()">
-                                <span class="slider"></span>
-                            </label>
-                        </label>
-
-                        <div id="sleepTimeAutoUpdateContainer" style="transition: opacity 0.3s ease;">
                             <label
-                                style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
-                                <span style="font-size: 14px;">明け通知のあとも自動更新を続ける</span>
+                                style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding-bottom: 8px; border-bottom: 1px solid var(--color-border); margin-bottom: 4px;">
+                                <span style="font-size: 14px; font-weight: 500;">おやすみタイムを有効にする</span>
                                 <label class="toggle-switch">
-                                    <input type="checkbox" id="sleepTimeAutoUpdateInput" onchange="saveSettingsAuto()">
+                                    <input type="checkbox" id="sleepTimeEnabledInputInner"
+                                        onchange="syncSleepTimeEnabled(this.checked); saveSettingsAndRecalculate()">
                                     <span class="slider"></span>
                                 </label>
                             </label>
-                            <div class="help-text" style="margin-top: 4px;">※OFFの場合、通知確認後に手動でタッチしてから次のタイマーが開始します</div>
+
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <div style="flex: 1;">
+                                    <label
+                                        style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px;">開始時刻</label>
+                                    <input type="time" id="sleepTimeStartInput" style="height: 44px; width: 100%;"
+                                        onchange="saveSettingsAndRecalculate()">
+                                </div>
+                                <span style="color: var(--color-text-secondary);">～</span>
+                                <div style="flex: 1;">
+                                    <label
+                                        style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px;">終了時刻</label>
+                                    <input type="time" id="sleepTimeEndInput" style="height: 44px; width: 100%;"
+                                        onchange="saveSettingsAndRecalculate()">
+                                </div>
+                            </div>
+
+                            <span style="font-size: 14px;">おやすみ明けに通知を送る</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="sleepTimeNotifyOnEndInput" checked
+                                    onchange="toggleSleepTimeAutoUpdate(); saveSettingsAndRecalculate()">
+                                <span class="slider"></span>
+                            </label>
+                            </label>
+
+                            <div id="sleepTimeAutoUpdateContainer" style="transition: opacity 0.3s ease;">
+                                <label
+                                    style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                    <span style="font-size: 14px;">明け通知のあとも自動更新を続ける</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="sleepTimeAutoUpdateInput"
+                                            onchange="saveSettingsAndRecalculate()">
+                                        <span class="slider"></span>
+                                    </label>
+                                </label>
+                                <div class="help-text" style="margin-top: 4px;">※OFFの場合、通知確認後に手動でタッチしてから次のタイマーが開始します
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1205,6 +1231,7 @@
         let sleepTimeEnd = '';
         let sleepTimeNotifyOnEnd = true;
         let sleepTimeAutoUpdate = false;
+        let isDelayedBySleepTime = false;
 
         // --- Web Push Settings ---
         const VAPID_PUBLIC_KEY = 'BDhsA4_i9Dd6zh0p0QoGCL-tyXG1rTbmqz_1-l3KE0qtViJ01pS25EDZeaBGn0jnDR2YLTezFHX8qFcEPBNI4Lg';
@@ -1431,8 +1458,8 @@
                 completeTitle = settings.completeTitle || "カフェタッチ完了！";
 
                 lastScheduledSource = settings.lastScheduledSource || 'fixed';
-                isInitialSetupDone = settings.isInitialSetupDone || false;
                 enableVibration = settings.enableVibration !== undefined ? settings.enableVibration : true;
+                isDelayedBySleepTime = settings.isDelayedBySleepTime || false;
             }
 
             // 環境別クラスの付外
@@ -1503,7 +1530,8 @@
                 document.getElementById('sleepTimeEndInput').value = sleepTimeEnd;
                 document.getElementById('sleepTimeNotifyOnEndInput').checked = sleepTimeNotifyOnEnd;
                 document.getElementById('sleepTimeAutoUpdateInput').checked = sleepTimeAutoUpdate;
-                toggleSleepTimeFields();
+                syncSleepTimeEnabled(sleepTimeEnabled);
+                toggleSleepTimeAutoUpdate();
             }
 
             document.getElementById('colorPicker').value = primaryColor;
@@ -1573,7 +1601,7 @@
                 isDelayedNotification,
                 remindTitle, remindBody, completeTitle,
                 lastScheduledSource, primaryColor, textColor, isInitialSetupDone,
-                enableVibration
+                enableVibration, isDelayedBySleepTime
             };
             localStorage.setItem('cafeTouchSettings', JSON.stringify(settings));
 
@@ -1655,21 +1683,15 @@
             saveSettings();
         }
 
-        function toggleSleepTimeFields() {
-            const isEnabled = document.getElementById('sleepTimeEnabledInput').checked;
-            const fieldsContainer = document.getElementById('sleepTimeFields');
-            const inputs = fieldsContainer.querySelectorAll('input:not(#sleepTimeEnabledInput)');
+        function syncSleepTimeEnabled(isEnabled) {
+            sleepTimeEnabled = isEnabled;
+            // 外側と内側のチェックボックスを同期
+            const outer = document.getElementById('sleepTimeEnabledInput');
+            const inner = document.getElementById('sleepTimeEnabledInputInner');
+            if (outer) outer.checked = isEnabled;
+            if (inner) inner.checked = isEnabled;
 
-            if (isEnabled) {
-                fieldsContainer.style.opacity = '1';
-                fieldsContainer.style.pointerEvents = 'auto';
-                inputs.forEach(input => input.disabled = false);
-            } else {
-                fieldsContainer.style.opacity = '0.5';
-                fieldsContainer.style.pointerEvents = 'none';
-                inputs.forEach(input => input.disabled = true);
-            }
-            toggleSleepTimeAutoUpdate(); // 内側のON/OFFも連動同期
+            toggleSleepTimeAutoUpdate();
         }
 
         function toggleSleepTimeAutoUpdate() {
@@ -1812,6 +1834,29 @@
                 isDelayedNotification = true;
             }
 
+            // おやすみタイムの適用
+            let finalAutoUpdate = autoUpdateNext;
+            if (sleepTimeEnabled && sleepTimeStart && sleepTimeEnd && (sleepTimeStart !== sleepTimeEnd)) {
+                const sleepResult = applySleepTime(nextNotificationTime);
+                if (sleepResult.isInside) {
+                    if (sleepTimeNotifyOnEnd) {
+                        nextNotificationTime = sleepResult.nextDate;
+                        finalAutoUpdate = sleepTimeAutoUpdate;
+                        isDelayedBySleepTime = true;
+                        console.log(`[Sleep Time] PC: Rescheduled to end time: ${nextNotificationTime.toISOString()}, nextAutoUpdate=${finalAutoUpdate}`);
+                    } else {
+                        // 明けに通知を送らない場合、ひとまずタイマーを止めるか、非常に遠い未来にする
+                        // ここでは簡単にタイマー未設定状態にする
+                        nextNotificationTime = null;
+                        console.log(`[Sleep Time] PC: sleepTimeNotifyOnEnd is false. Stopping tower.`);
+                    }
+                } else {
+                    isDelayedBySleepTime = false;
+                }
+            } else {
+                isDelayedBySleepTime = false;
+            }
+
             saveSettings();
             updateTimerLogic(true);
 
@@ -1820,6 +1865,42 @@
             if (isMobile && nextNotificationTime && !isRetroactive && !skipSync) {
                 syncScheduleToWorker(nextNotificationTime);
             }
+        }
+
+        // おやすみタイム判定ロジック (Workerから移植)
+        function applySleepTime(targetDate) {
+            if (!targetDate) return { isInside: false, nextDate: null };
+
+            const [sh, sm] = sleepTimeStart.split(':').map(Number);
+            const [eh, em] = sleepTimeEnd.split(':').map(Number);
+
+            const startDate = new Date(targetDate);
+            startDate.setHours(sh, sm, 0, 0);
+
+            let endDate = new Date(targetDate);
+            endDate.setHours(eh, em, 0, 0);
+
+            if (startDate > endDate) {
+                endDate.setDate(endDate.getDate() + 1);
+            }
+
+            let checkStart = new Date(startDate);
+            let checkEnd = new Date(endDate);
+            if (sh > eh) {
+                if (targetDate.getHours() < eh || (targetDate.getHours() === eh && targetDate.getMinutes() < em)) {
+                    checkStart.setDate(checkStart.getDate() - 1);
+                    checkEnd = new Date(targetDate);
+                    checkEnd.setHours(eh, em, 0, 0);
+                } else {
+                    checkEnd.setDate(checkEnd.getDate() + 1);
+                }
+            }
+
+            const isInside = (targetDate >= checkStart && targetDate < checkEnd);
+            return {
+                isInside,
+                nextDate: isInside ? checkEnd : targetDate
+            };
         }
 
         function markCompleted(isAuto = false) {
@@ -1948,7 +2029,9 @@
             }
 
             // 2. 手動操作待ちモード（または遡及登録後の即時待機）
-            if (isDelayedNotification || (!autoUpdateNext && timeSinceScheduled >= 0)) {
+            // おやすみ明け通知の場合はおやすみ専用の自動更新設定を、それ以外は通常の設定を参照する
+            const effectiveAutoUpdate = isDelayedBySleepTime ? sleepTimeAutoUpdate : autoUpdateNext;
+            if (isDelayedNotification || (!effectiveAutoUpdate && timeSinceScheduled >= 0)) {
                 updateText('timer', '00:00:00');
                 updateInfo(lastTouchText, "タッチ待機中...", nextTouchText);
                 updateDynamicTitle();
@@ -1982,8 +2065,20 @@
             if (timeSinceScheduled >= actionWaitMs) {
                 document.getElementById('autoUpdateBar').style.width = '100%';
                 lastCompletedTime = new Date(nextNotificationTime.getTime() + actionWaitMs);
-                // 自動更新(skipSync=true)を渡して Worker への二重送信を防止
-                recalculateNextNotificationTime(false, true);
+
+                // おやすみ明け通知だった場合、おやすみ専用の自動更新設定を優先して反映させる
+                const originalAutoUpdate = autoUpdateNext;
+                if (isDelayedBySleepTime) {
+                    autoUpdateNext = sleepTimeAutoUpdate;
+                }
+
+                if (autoUpdateNext) {
+                    // 自動更新(skipSync=true)を渡して Worker への二重送信を防止
+                    recalculateNextNotificationTime(false, true);
+                }
+
+                // グローバルな設定値を元に戻す
+                autoUpdateNext = originalAutoUpdate;
                 return;
             }
 
@@ -2559,4 +2654,5 @@
         });
     </script>
 </body>
+
 </html>
