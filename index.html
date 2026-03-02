@@ -854,7 +854,8 @@
             </div>
 
             <div style="height: 16px;"></div>
-            <button class="btn btn-primary" id="initialSetupConfirmBtn">この内容で開始する</button>
+            <button class="btn btn-primary" id="initialSetupConfirmBtn"
+                onclick="confirmInitialSetup()">この内容で開始する</button>
         </div>
 
         <div class="card">
@@ -1874,6 +1875,21 @@
             saveSettings();
         }
 
+        function confirmInitialSetup() {
+            const morningInput = document.getElementById('initialMorningTime');
+            const eveningInput = document.getElementById('initialEveningTime');
+            const actionInput = document.getElementById('initialActionTime');
+            const times = [];
+            if (morningInput?.value) times.push(morningInput.value);
+            if (eveningInput?.value) times.push(eveningInput.value);
+            fixedTimes = times.sort();
+            actionTimeSeconds = parseInt(actionInput?.value) || 30;
+            document.getElementById('actionTimeInput').value = actionTimeSeconds;
+            completeInitialSetup();
+            updateFixedTimesList();
+            recalculateNextNotificationTime();
+        }
+
         function completeInitialSetup() {
             isInitialSetupDone = true;
             document.getElementById('initialSetupCard').style.display = 'none';
@@ -2797,23 +2813,7 @@
                     }
                 }).catch(err => console.error('SW Registration failed:', err));
             }
-            document.getElementById('initialSetupCard').addEventListener('click', (e) => {
-                const btn = e.target.closest('#initialSetupConfirmBtn');
-                if (btn) {
-                    const morningInput = document.getElementById('initialMorningTime');
-                    const eveningInput = document.getElementById('initialEveningTime');
-                    const actionInput = document.getElementById('initialActionTime');
-                    const times = [];
-                    if (morningInput?.value) times.push(morningInput.value);
-                    if (eveningInput?.value) times.push(eveningInput.value);
-                    fixedTimes = times.sort();
-                    actionTimeSeconds = parseInt(actionInput?.value) || 30;
-                    document.getElementById('actionTimeInput').value = actionTimeSeconds;
-                    completeInitialSetup();
-                    updateFixedTimesList();
-                    recalculateNextNotificationTime();
-                }
-            });
+            // 初期設定のボタンは inline onclick (confirmInitialSetup) で処理するように変更🐾
             document.getElementById('showTitleTimerInput').addEventListener('change', saveSettingsAndRecalculate);
             document.getElementById('notifyOnCompleteInput').addEventListener('change', saveSettings);
             document.getElementById('notificationSoundInput').addEventListener('change', saveSettings);
