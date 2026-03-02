@@ -1877,6 +1877,7 @@
         function completeInitialSetup() {
             isInitialSetupDone = true;
             document.getElementById('initialSetupCard').style.display = 'none';
+            saveSettings(); // 次回から出ないように保存💕
         }
 
         function showAddFixedTimeMode() {
@@ -2797,15 +2798,16 @@
                 }).catch(err => console.error('SW Registration failed:', err));
             }
             document.getElementById('initialSetupCard').addEventListener('click', (e) => {
-                if (e.target.id === 'initialSetupConfirmBtn') {
+                const btn = e.target.closest('#initialSetupConfirmBtn');
+                if (btn) {
                     const morningInput = document.getElementById('initialMorningTime');
                     const eveningInput = document.getElementById('initialEveningTime');
                     const actionInput = document.getElementById('initialActionTime');
                     const times = [];
-                    if (morningInput.value) times.push(morningInput.value);
-                    if (eveningInput.value) times.push(eveningInput.value);
+                    if (morningInput?.value) times.push(morningInput.value);
+                    if (eveningInput?.value) times.push(eveningInput.value);
                     fixedTimes = times.sort();
-                    actionTimeSeconds = parseInt(actionInput.value) || 0;
+                    actionTimeSeconds = parseInt(actionInput?.value) || 30;
                     document.getElementById('actionTimeInput').value = actionTimeSeconds;
                     completeInitialSetup();
                     updateFixedTimesList();
