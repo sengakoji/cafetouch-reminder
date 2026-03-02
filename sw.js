@@ -1,6 +1,6 @@
 // Service Worker for PWA & Notification
 
-const CACHE_NAME = 'cafetouch-v3';
+const CACHE_NAME = 'cafetouch-v4';
 const PRECACHE_URLS = [
     './',
     './index.html',
@@ -12,7 +12,6 @@ const PRECACHE_URLS = [
 ];
 
 self.addEventListener('install', (event) => {
-    // インストール時にコアアセットをキャッシュ
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
     );
@@ -20,7 +19,6 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-    // 古いキャッシュを削除
     event.waitUntil(
         caches.keys().then((keys) =>
             Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
@@ -28,33 +26,28 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// キャッシュファースト戦略（オフラインでも動作）
+// ネットワークファースト戦略（最新版を優先、オフライン時はキャッシュ）
 self.addEventListener('fetch', (event) => {
-    // 外部APIリクエスト（workers.dev等）はキャッシュしない
     if (!event.request.url.startsWith(self.location.origin)) return;
-
-    // POSTリクエストなどもキャッシュ対象外とする
     if (event.request.method !== 'GET') return;
 
     event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) {
-                return cachedResponse;
-            }
-            // キャッシュにない場合はネットワークへ
-            return fetch(event.request).then((networkResponse) => {
-                // レスポンスが正常かどうかチェック
-                if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-                    return networkResponse;
-                }
-                // 正常なレスポンスならキャッシュに保存して返す
+        fetch(event.request).then((networkResponse) => {
+            // 正常なレスポンスならキャッシュを更新
+            if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
                 const responseToCache = networkResponse.clone();
                 caches.open(CACHE_NAME).then((cache) => {
                     cache.put(event.request, responseToCache);
                 });
-                return networkResponse;
-            }).catch(() => {
-                // オフラインかつキャッシュにもない場合（ナビゲーションならindex.htmlを返す試み）
+            }
+            return networkResponse;
+        }).catch(() => {
+            // オフラインまたはエラー時はキャッシュを返す
+            return caches.match(event.request).then((cachedResponse) => {
+                if (cachedResponse) {
+                    return cachedResponse;
+                }
+                // ナビゲーションリクエストかつキャッシュなしなら index.html を試す
                 if (event.request.mode === 'navigate') {
                     return caches.match('./index.html');
                 }

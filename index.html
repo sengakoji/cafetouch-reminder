@@ -747,6 +747,40 @@
                 transform: translateY(0);
             }
         }
+
+        #sw-update-banner {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #FF4081;
+            /* めだつピンク！ */
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 10000;
+            cursor: pointer;
+            font-weight: bold;
+            animation: slideDown 0.3s ease-out;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+
+        @keyframes slideDown {
+            from {
+                top: -60px;
+                opacity: 0;
+            }
+
+            to {
+                top: 20px;
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 
@@ -758,6 +792,10 @@
             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </symbol>
     </svg>
+
+    <div id="sw-update-banner" onclick="location.reload(true)">
+        ✨ 最新版が利用可能です。こちらをタップして更新 🔄
+    </div>
 
     <div class="container">
         <h1>☕ カフェタッチリマインダー</h1>
@@ -2718,6 +2756,26 @@
             // Service Workerの自動登録
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js').then(async (reg) => {
+                    const updateBanner = document.getElementById('sw-update-banner');
+
+                    // すでに待機中の更新がある場合
+                    if (reg.waiting) {
+                        if (updateBanner) updateBanner.style.display = 'flex';
+                    }
+
+                    // 新しい更新が見つかった場合
+                    reg.onupdatefound = () => {
+                        const installingWorker = reg.installing;
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    // 既存のコントローラーがある＝アップデート
+                                    if (updateBanner) updateBanner.style.display = 'flex';
+                                }
+                            }
+                        };
+                    };
+
                     console.log('Service Worker Registered');
                     updateNotificationStatus();
 
