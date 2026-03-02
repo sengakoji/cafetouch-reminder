@@ -2550,14 +2550,13 @@
             document.getElementById('showTitleTimerInput').addEventListener('change', saveSettingsAndRecalculate);
             document.getElementById('notifyOnCompleteInput').addEventListener('change', saveSettings);
             document.getElementById('notificationSoundInput').addEventListener('change', saveSettings);
-            document.getElementById('requireInteractionInput').addEventListener('change', (e) => {
-                toggleFocusSetting();
-                saveSettings();
-            });
+            document.getElementById('requireInteractionInput').addEventListener('change', () => { toggleFocusSetting(); saveSettings(); });
             document.getElementById('preventFocusOnNotificationClickInput').addEventListener('change', saveSettings);
             document.getElementById('autoUpdateNextInput').addEventListener('change', saveSettings);
+            document.getElementById('sleepTimeEnabledInput')?.addEventListener('change', () => { toggleSleepTimeFields(); saveSettings(); });
+            document.getElementById('sleepTimeNotifyOnEndInput')?.addEventListener('change', () => { toggleSleepTimeAutoUpdate(); saveSettings(); });
+            document.getElementById('sleepTimeAutoUpdateInput')?.addEventListener('change', saveSettings);
         });
     </script>
 </body>
-
 </html>
