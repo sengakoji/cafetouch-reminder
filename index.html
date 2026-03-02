@@ -1080,7 +1080,7 @@
                     <div id="sleepTimeEnabledOuter"
                         style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                         <label for="sleepTimeToggle" class="toggle-label"
-                            style="flex: 1; margin-bottom: 0; margin-right: 12px; padding: 10px;">
+                            style="width: fit-content; margin-bottom: 0; margin-right: 12px; padding: 10px 16px;">
                             🌙 おやすみタイム（通知保留）
                         </label>
                         <label class="toggle-switch">
@@ -1154,7 +1154,7 @@
                         style="display: flex; gap: 8px; align-items: center; min-height: 44px;">
                         <!-- 初期状態: 追加ボタンのみ -->
                         <button id="showAddFixedTimeBtn" class="btn btn-secondary"
-                            style="margin-bottom: 0; padding: 10px 16px; font-size: 14px;"
+                            style="width: fit-content; margin-bottom: 0; padding: 10px 16px; font-size: 14px;"
                             onclick="showAddFixedTimeMode()">
                             <span style="font-size: 16px; font-weight: bold; margin-right: 4px;">+</span> 時刻を追加
                         </button>
@@ -1162,7 +1162,7 @@
                         <!-- 入力モード時 (初期非表示) -->
                         <div id="addFixedTimeInputGroup"
                             style="display: none; align-items: center; gap: 8px; width: 100%;">
-                            <input type="time" id="fixedTimeInput" style="flex: 1; height: 44px;">
+                            <input type="time" id="fixedTimeInput" style="width: 140px; flex: none; height: 44px;">
                             <button class="btn btn-primary" style="width: auto; padding: 10px 20px; margin-bottom: 0;"
                                 onclick="addFixedTime()">決定</button>
                             <button class="btn btn-secondary" style="width: auto; padding: 10px 12px; margin-bottom: 0;"

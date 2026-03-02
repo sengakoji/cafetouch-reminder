@@ -1,6 +1,6 @@
 // Service Worker for PWA & Notification
 
-const CACHE_NAME = 'cafetouch-v2';
+const CACHE_NAME = 'cafetouch-v3';
 const PRECACHE_URLS = [
     './',
     './index.html',
