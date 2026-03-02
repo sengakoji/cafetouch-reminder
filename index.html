@@ -1817,7 +1817,6 @@
                 wrapper.classList.add('setting-disabled');
                 input.disabled = true;
             }
-            saveSettings();
         }
 
         function toggleSleepTimeAutoUpdate() {
@@ -1843,22 +1842,6 @@
             if (inner) inner.checked = isEnabled;
 
             toggleSleepTimeAutoUpdate();
-        }
-
-        function toggleSleepTimeAutoUpdate() {
-            const isNotifyOnEnd = document.getElementById('sleepTimeNotifyOnEndInput').checked;
-            const autoUpdateContainer = document.getElementById('sleepTimeAutoUpdateContainer');
-            const autoUpdateInput = document.getElementById('sleepTimeAutoUpdateInput');
-
-            if (isNotifyOnEnd) {
-                autoUpdateContainer.style.opacity = '1';
-                autoUpdateContainer.style.pointerEvents = 'auto';
-                autoUpdateInput.disabled = false;
-            } else {
-                autoUpdateContainer.style.opacity = '0.5';
-                autoUpdateContainer.style.pointerEvents = 'none';
-                autoUpdateInput.disabled = true;
-            }
         }
 
         function setThemeMode(mode) {
