@@ -393,27 +393,6 @@
             font-weight: 600;
         }
 
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-        }
-
-        .checkbox-group input {
-            width: auto;
-            margin: 0;
-        }
-
-        .checkbox-group.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .checkbox-group.disabled input {
-            cursor: not-allowed;
-        }
-
         input[type="number"],
         input[type="time"],
         input[type="color"],
@@ -537,7 +516,7 @@
             display: block;
         }
 
-        .sleep-time-toggle:checked~.sleep-time-content {
+        .sleep-time-toggle:checked~.setting-item .sleep-time-content {
             display: block;
         }
 
@@ -584,6 +563,83 @@
             border: 1px solid rgba(192, 21, 47, 0.25);
         }
 
+        /* Toggle Switch CSS */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+            margin: 0;
+            position: absolute;
+        }
+
+        .toggle-switch .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--color-control-bg);
+            border: 1px solid var(--color-border);
+            transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 24px;
+        }
+
+        .toggle-switch .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 2px;
+            bottom: 2px;
+            background-color: var(--color-text-secondary);
+            transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked+.slider {
+            background-color: var(--initial-color, #06BBFA);
+            border-color: var(--initial-color, #06BBFA);
+        }
+
+        .toggle-switch input:checked+.slider:before {
+            transform: translateX(20px);
+            background-color: #fff;
+        }
+
+        .toggle-switch input:focus-visible+.slider {
+            outline: 2px solid var(--initial-color, #06BBFA);
+            outline-offset: 2px;
+        }
+
+        .setting-item {
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
         .help-text {
             font-size: 12px;
             color: var(--color-text-secondary);
@@ -625,6 +681,12 @@
             margin-top: 4px;
             margin-bottom: 12px;
             animation: fadeIn 0.2s ease-out;
+        }
+
+        .setting-disabled {
+            opacity: 0.4;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
 
         .retroactive-panel input[type="range"] {
@@ -842,105 +904,136 @@
 
             <div class="settings-content">
                 <!-- グループ1: 動作 -->
-                <div class="form-group">
-                    <label class="checkbox-group" style="margin-bottom: 8px;">
-                        <input type="checkbox" id="autoUpdateNextInput" checked>
-                        通知から操作時間経過後に自動で次の予定をセットする
-                    </label>
+                <div class="setting-item">
+                    <div class="setting-row">
+                        <label for="autoUpdateNextInput"
+                            style="cursor: pointer; margin-bottom: 0;">通知から操作時間経過後に自動で次の予定をセットする</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoUpdateNextInput" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                     <div class="help-text">オフにすると、通知後に「カフェタッチ完了」ボタンを押すまで待機します</div>
-
                 </div>
 
-                <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+                <!-- <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;"> -->
 
                 <!-- グループ2: 通知・表示 -->
-                <div class="form-group">
-                    <label class="checkbox-group" style="margin-bottom: 8px;">
-                        <input type="checkbox" id="notifyOnCompleteInput">
-                        完了時に通知を表示する
-                    </label>
-                    <div class="help-text">「カフェタッチ完了」ボタンを押した際にも通知でお知らせします</div>
-
-                    <label class="checkbox-group" style="margin-top: 12px; margin-bottom: 8px;">
-                        <input type="checkbox" id="notificationSoundInput" checked>
-                        通知時に音を鳴らす
-                    </label>
-                    <div class="help-text">※OSやブラウザ側の通知設定が優先されます</div>
-
-                    <div class="show-only-pc" style="margin-top: 12px; margin-bottom: 4px;">
-                        <label class="checkbox-group">
-                            <input type="checkbox" id="requireInteractionInput" onchange="toggleFocusSetting()">
-                            通知を自動で消さない（クリックで完了）
+                <div class="setting-item">
+                    <div class="setting-row">
+                        <label for="notifyOnCompleteInput"
+                            style="cursor: pointer; margin-bottom: 0;">完了時に通知を表示する</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifyOnCompleteInput">
+                            <span class="slider"></span>
                         </label>
+                    </div>
+                    <div class="help-text">「カフェタッチ完了」ボタンを押した際にも通知でお知らせします</div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-row">
+                        <label for="notificationSoundInput" style="cursor: pointer; margin-bottom: 0;">通知時に音を鳴らす</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notificationSoundInput" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="help-text">※OSやブラウザ側の通知設定が優先されます</div>
+                </div>
+
+                <div class="show-only-pc" style="margin-top: 12px;">
+                    <div class="setting-item">
+                        <div class="setting-row">
+                            <label for="requireInteractionInput"
+                                style="cursor: pointer; margin-bottom: 0;">通知を自動で消さない（クリックで完了）</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="requireInteractionInput" onchange="toggleFocusSetting()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
                         <div class="help-text">有効にすると、リマインド通知が画面に残り続けます。<br>通知をクリックすると「カフェタッチ完了」として処理されます。</div>
 
-                        <div style="margin-left: 24px; margin-top: 8px;">
-                            <label class="checkbox-group" id="preventFocusContainer">
-                                <input type="checkbox" id="preventFocusOnNotificationClickInput">
-                                通知クリック時にウィンドウを開かない
-                            </label>
+
+                        <div id="preventFocusWrapper" style="margin-left: 24px; margin-top: 16px; margin-bottom: 16px;">
+                            <div id="preventFocusContainer" class="setting-row">
+                                <label for="preventFocusOnNotificationClickInput"
+                                    style="cursor: pointer; margin-bottom: 0;">通知クリック時にウィンドウを開かない</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="preventFocusOnNotificationClickInput">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
                             <div class="help-text">有効にすると、クリックしてもブラウザを最前面に表示しません</div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- PWA専用: 通知設定の案内 -->
-                    <div id="pwaAdvancedSettings" class="show-only-mobile-pwa"
-                        style="margin-top: 16px; padding: 16px; background: rgba(var(--color-teal-500-rgb), 0.05); border-radius: 12px; border: 1px solid rgba(var(--color-teal-500-rgb), 0.1); display: none;">
-                        <h4 style="margin: 0 0 12px 0; font-size: 14px; display: flex; align-items: center; gap: 6px;">
-                            <span style="font-size: 16px;">🚀</span> PWA 版 通知設定ガイド
-                        </h4>
+                <!-- PWA専用: 通知設定の案内 -->
+                <div id="pwaAdvancedSettings" class="show-only-mobile-pwa"
+                    style="margin-top: 16px; padding: 16px; background: rgba(var(--color-teal-500-rgb), 0.05); border-radius: 12px; border: 1px solid rgba(var(--color-teal-500-rgb), 0.1); display: none;">
+                    <h4 style="margin: 0 0 12px 0; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 16px;">🚀</span> PWA 版 通知設定ガイド
+                    </h4>
 
-                        <div class="help-text" style="margin-bottom: 12px; font-size: 13px;" id="pwaNotifDesc">
-                            ポップアップ（画面上部への通知）やバイブレーション（振動）を有効にするには、OS側の設定変更が必要です。
-                        </div>
-
-                        <div id="pwaGuidePath" class="help-text"
-                            style="padding: 10px; background: var(--color-surface); border-radius: 6px; border-left: 3px solid var(--color-teal-500); font-size: 13px; margin-bottom: 16px;">
-                            💡 動作しない場合は、デバイスの<br>
-                            <span id="pwaOSPathText" style="font-weight: 500;">[設定] &gt; [通知]</span><br>
-                            からポップアップ、バイブレーションをオンにしてください
-                        </div>
-
-                        <button class="btn btn-secondary" style="width: 100%; font-size: 13px; padding: 8px;"
-                            onclick="checkNotificationPermissionManual()">
-                            🔔 OS設定を確認する手順
-                        </button>
+                    <div class="help-text" style="margin-bottom: 12px; font-size: 13px;" id="pwaNotifDesc">
+                        ポップアップ（画面上部への通知）やバイブレーション（振動）を有効にするには、OS側の設定変更が必要です。
                     </div>
 
-
-                    <!-- 非PWAモバイル用: インストール誘導 -->
-                    <div class="show-only-mobile-browser"
-                        style="margin-top: 16px; padding: 12px; background: rgba(var(--color-teal-500-rgb), 0.05); border-radius: 8px; border: 1px dashed rgba(var(--color-teal-500-rgb), 0.3); font-size: 13px;">
-                        <strong>ホーム画面に追加（インストール）</strong>すると、端末の振動や画面上部へのポップアップ通知がアプリごとに設定しやすくなります。
-                        Android版Microsoft Edgeをお使いの方は、設定の項目が異なるため一時的にGoogle Chromeを使用してホーム画面に追加(インストール)することをお勧めします。
-
-                        <!-- Chrome限定インストールボタン (beforeinstallpromptが来た時のみ表示) -->
-                        <button id="pwaInstallBtn" class="btn btn-secondary"
-                            style="margin-top: 12px; padding: 10px; font-size: 13px; display: none;">
-                            📲 ホーム画面に追加する
-                        </button>
-
-                        <!-- iOS/iPadOS 向けガイド (JSで isIOS && !isStandalone の時のみ表示) -->
-                        <div id="iosInstallGuide"
-                            style="display: none; margin-top: 12px; padding: 10px; background: var(--color-surface); border-radius: 6px; border-left: 3px solid var(--color-teal-500); line-height: 1.6;">
-                            📤 ホーム画面への追加方法：<br>
-                            ブラウザの<strong>共有ボタン</strong>をタップして、
-                            <strong>「ホーム画面に追加」</strong>を選んでください。<br>
-                            <span style="color: var(--color-text-secondary); font-size: 12px;">
-                                ※ Safari では画面下部、Chrome・Edge では
-                                アドレスバー付近またはメニュー内にあります。
-                            </span>
-                        </div>
+                    <div id="pwaGuidePath" class="help-text"
+                        style="padding: 10px; background: var(--color-surface); border-radius: 6px; border-left: 3px solid var(--color-teal-500); font-size: 13px; margin-bottom: 16px;">
+                        💡 動作しない場合は、デバイスの<br>
+                        <span id="pwaOSPathText" style="font-weight: 500;">[設定] &gt; [通知]</span><br>
+                        からポップアップ、バイブレーションをオンにしてください
                     </div>
 
-                    <label class="checkbox-group" style="margin-top: 12px;">
-                        <input type="checkbox" id="showTitleTimerInput" checked>
-                        タブのタイトルに残り時間を表示する
-                    </label>
-                    <div class="help-text">別のタブを見ていても状況を確認できます（分単位の表示）</div>
+                    <button class="btn btn-secondary" style="width: 100%; font-size: 13px; padding: 8px;"
+                        onclick="checkNotificationPermissionManual()">
+                        🔔 OS設定を確認する手順
+                    </button>
+                </div>
+
+
+                <!-- 非PWAモバイル用: インストール誘導 -->
+                <div class="show-only-mobile-browser"
+                    style="margin-top: 16px; padding: 12px; background: rgba(var(--color-teal-500-rgb), 0.05); border-radius: 8px; border: 1px dashed rgba(var(--color-teal-500-rgb), 0.3); font-size: 13px;">
+                    <strong>ホーム画面に追加（インストール）</strong>すると、端末の振動や画面上部へのポップアップ通知がアプリごとに設定しやすくなります。
+                    Android版Microsoft Edgeをお使いの方は、設定の項目が異なるため一時的にGoogle Chromeを使用してホーム画面に追加(インストール)することをお勧めします。
+
+                    <!-- Chrome限定インストールボタン (beforeinstallpromptが来た時のみ表示) -->
+                    <button id="pwaInstallBtn" class="btn btn-secondary"
+                        style="margin-top: 12px; padding: 10px; font-size: 13px; display: none;">
+                        📲 ホーム画面に追加する
+                    </button>
+
+                    <!-- iOS/iPadOS 向けガイド (JSで isIOS && !isStandalone の時のみ表示) -->
+                    <div id="iosInstallGuide"
+                        style="display: none; margin-top: 12px; padding: 10px; background: var(--color-surface); border-radius: 6px; border-left: 3px solid var(--color-teal-500); line-height: 1.6;">
+                        📤 ホーム画面への追加方法：<br>
+                        ブラウザの<strong>共有ボタン</strong>をタップして、
+                        <strong>「ホーム画面に追加」</strong>を選んでください。<br>
+                        <span style="color: var(--color-text-secondary); font-size: 12px;">
+                            ※ Safari では画面下部、Chrome・Edge では
+                            アドレスバー付近またはメニュー内にあります。
+                        </span>
+                    </div>
                 </div>
 
                 <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+
+                <div class="setting-item">
+                    <div class="setting-row">
+                        <label for="showTitleTimerInput"
+                            style="cursor: pointer; margin-bottom: 0;">タブのタイトルに残り時間を表示する</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="showTitleTimerInput" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="help-text">別のタブを見ていても状況を確認できます（分単位の表示）</div>
+                </div>
+
+
 
                 <!-- グループ3: メッセージ設定・状態・テスト -->
                 <div style="margin-bottom: 24px;">
@@ -1075,12 +1168,12 @@
 
                 <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
 
-                <div class="form-group">
-                    <input type="checkbox" id="sleepTimeToggle" class="settings-toggle sleep-time-toggle">
-                    <div id="sleepTimeEnabledOuter"
-                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <input type="checkbox" id="sleepTimeToggle" class="settings-toggle sleep-time-toggle"
+                    style="display: none;">
+                <div class="setting-item">
+                    <div id="sleepTimeEnabledOuter" class="setting-row">
                         <label for="sleepTimeToggle" class="toggle-label"
-                            style="width: fit-content; margin-bottom: 0; margin-right: 12px; padding: 10px 16px;">
+                            style="width: fit-content; margin-bottom: 0; padding: 10px 16px;">
                             🌙 おやすみタイム（通知保留）
                         </label>
                         <label class="toggle-switch">
@@ -1095,15 +1188,15 @@
                         <div id="sleepTimeFields"
                             style="margin-top: 16px; padding: 16px; background: var(--color-surface); border-radius: 8px; border: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 16px; transition: opacity 0.3s ease;">
 
-                            <label
-                                style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding-bottom: 8px; border-bottom: 1px solid var(--color-border); margin-bottom: 4px;">
-                                <span style="font-size: 14px; font-weight: 500;">おやすみタイムを有効にする</span>
+                            <div class="setting-row">
+                                <label for="sleepTimeEnabledInputInner"
+                                    style="font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 0;">おやすみタイムを有効にする</label>
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="sleepTimeEnabledInputInner"
                                         onchange="syncSleepTimeEnabled(this.checked); saveSettingsAndRecalculate()">
                                     <span class="slider"></span>
                                 </label>
-                            </label>
+                            </div>
 
                             <div style="display: flex; gap: 12px; align-items: center;">
                                 <div style="flex: 1;">
@@ -1121,25 +1214,29 @@
                                 </div>
                             </div>
 
-                            <span style="font-size: 14px;">おやすみ明けに通知を送る</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="sleepTimeNotifyOnEndInput" checked
-                                    onchange="toggleSleepTimeAutoUpdate(); saveSettingsAndRecalculate()">
-                                <span class="slider"></span>
-                            </label>
-                            </label>
+                            <div
+                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <label for="sleepTimeNotifyOnEndInput"
+                                    style="font-size: 14px; cursor: pointer; margin-bottom: 0;">保留した通知を受け取る</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="sleepTimeNotifyOnEndInput" checked
+                                        onchange="toggleSleepTimeAutoUpdate(); saveSettingsAndRecalculate()">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
 
-                            <div id="sleepTimeAutoUpdateContainer" style="transition: opacity 0.3s ease;">
-                                <label
-                                    style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
-                                    <span style="font-size: 14px;">明け通知のあとも自動更新を続ける</span>
+                            <div id="sleepTimeAutoUpdateWrapper"
+                                style="transition: opacity 0.3s ease; margin-left: 12px; padding-left: 12px; border-left: 2px solid var(--color-border); margin-top: 8px;">
+                                <div class="setting-row" style="margin-bottom: 0;">
+                                    <label for="sleepTimeAutoUpdateInput"
+                                        style="font-size: 14px; cursor: pointer; margin-bottom: 0;">保留した通知後に次回タイマーを開始する</label>
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="sleepTimeAutoUpdateInput"
                                             onchange="saveSettingsAndRecalculate()">
                                         <span class="slider"></span>
                                     </label>
-                                </label>
-                                <div class="help-text" style="margin-top: 4px;">※OFFの場合、通知確認後に手動でタッチしてから次のタイマーが開始します
+                                </div>
+                                <div class="help-text" style="margin-top: 4px;">※OFFの場合、通知確認後に手動で完了を押して次のタイマーを開始します
                                 </div>
                             </div>
                         </div>
@@ -1162,7 +1259,7 @@
                         <!-- 入力モード時 (初期非表示) -->
                         <div id="addFixedTimeInputGroup"
                             style="display: none; align-items: center; gap: 8px; width: 100%;">
-                            <input type="time" id="fixedTimeInput" style="width: 140px; flex: none; height: 44px;">
+                            <input type="time" id="fixedTimeInput" style="width: 100px; flex: none; height: 44px;">
                             <button class="btn btn-primary" style="width: auto; padding: 10px 20px; margin-bottom: 0;"
                                 onclick="addFixedTime()">決定</button>
                             <button class="btn btn-secondary" style="width: auto; padding: 10px 12px; margin-bottom: 0;"
@@ -1427,6 +1524,7 @@
             const saved = localStorage.getItem('cafeTouchSettings');
             if (saved) {
                 const settings = JSON.parse(saved);
+                isInitialSetupDone = settings.isInitialSetupDone || false;
                 fixedTimes = settings.fixedTimes || [];
                 primaryColor = settings.primaryColor || '#06BBFA';
                 textColor = settings.textColor || 'white';
@@ -1670,17 +1768,31 @@
 
         function toggleFocusSetting() {
             const isRequire = document.getElementById('requireInteractionInput').checked;
-            const focusContainer = document.getElementById('preventFocusContainer');
-            const focusInput = document.getElementById('preventFocusOnNotificationClickInput');
+            const wrapper = document.getElementById('preventFocusWrapper');
+            const input = document.getElementById('preventFocusOnNotificationClickInput');
 
             if (isRequire) {
-                focusContainer.classList.remove('disabled');
-                focusInput.disabled = false;
+                wrapper.classList.remove('setting-disabled');
+                input.disabled = false;
             } else {
-                focusContainer.classList.add('disabled');
-                focusInput.disabled = true;
+                wrapper.classList.add('setting-disabled');
+                input.disabled = true;
             }
             saveSettings();
+        }
+
+        function toggleSleepTimeAutoUpdate() {
+            const isNotifyOnEnd = document.getElementById('sleepTimeNotifyOnEndInput').checked;
+            const wrapper = document.getElementById('sleepTimeAutoUpdateWrapper');
+            const input = document.getElementById('sleepTimeAutoUpdateInput');
+
+            if (isNotifyOnEnd) {
+                wrapper.classList.remove('setting-disabled');
+                input.disabled = false;
+            } else {
+                wrapper.classList.add('setting-disabled');
+                input.disabled = true;
+            }
         }
 
         function syncSleepTimeEnabled(isEnabled) {
@@ -2587,8 +2699,8 @@
                 if (isStandalone) {
                     const titleTimerInput = document.getElementById('showTitleTimerInput');
                     if (titleTimerInput) {
-                        const group = titleTimerInput.closest('.checkbox-group');
-                        if (group) {
+                        const group = titleTimerInput.parentElement.parentElement;
+                        if (group && group.tagName === 'DIV') {
                             group.style.display = 'none';
                             const helpText = group.nextElementSibling;
                             if (helpText && helpText.classList.contains('help-text')) helpText.style.display = 'none';
