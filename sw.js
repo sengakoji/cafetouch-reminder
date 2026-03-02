@@ -1,6 +1,6 @@
 // Service Worker for PWA & Notification
 
-const CACHE_NAME = 'cafetouch-v1';
+const CACHE_NAME = 'cafetouch-v2';
 const PRECACHE_URLS = [
     './',
     './index.html',
@@ -30,17 +30,36 @@ self.addEventListener('activate', (event) => {
 
 // キャッシュファースト戦略（オフラインでも動作）
 self.addEventListener('fetch', (event) => {
-    // 外部APIリクエスト（workers.dev）はキャッシュしない
+    // 外部APIリクエスト（workers.dev等）はキャッシュしない
     if (!event.request.url.startsWith(self.location.origin)) return;
-    // ナビゲーションリクエストは index.html を返す
-    if (event.request.mode === 'navigate') {
-        event.respondWith(
-            caches.match('./index.html').then((cached) => cached || fetch(event.request))
-        );
-        return;
-    }
+
+    // POSTリクエストなどもキャッシュ対象外とする
+    if (event.request.method !== 'GET') return;
+
     event.respondWith(
-        caches.match(event.request).then((cached) => cached || fetch(event.request))
+        caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+                return cachedResponse;
+            }
+            // キャッシュにない場合はネットワークへ
+            return fetch(event.request).then((networkResponse) => {
+                // レスポンスが正常かどうかチェック
+                if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+                    return networkResponse;
+                }
+                // 正常なレスポンスならキャッシュに保存して返す
+                const responseToCache = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, responseToCache);
+                });
+                return networkResponse;
+            }).catch(() => {
+                // オフラインかつキャッシュにもない場合（ナビゲーションならindex.htmlを返す試み）
+                if (event.request.mode === 'navigate') {
+                    return caches.match('./index.html');
+                }
+            });
+        })
     );
 });
 
