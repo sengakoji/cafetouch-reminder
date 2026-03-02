@@ -1067,6 +1067,61 @@
 
                 <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
 
+                <div class="form-group show-only-pwa">
+                    <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                        <span>🌙 おやすみタイム（通知保留）</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="sleepTimeEnabledInput"
+                                onchange="toggleSleepTimeFields(); saveSettingsAuto()">
+                            <span class="slider"></span>
+                        </label>
+                    </label>
+                    <div class="help-text">指定した時間帯は通知を停止し、おやすみ明けに遅延して通知します</div>
+
+                    <div id="sleepTimeFields"
+                        style="margin-top: 16px; padding: 16px; background: var(--color-surface); border-radius: 8px; border: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 16px; opacity: 0.5; pointer-events: none; transition: opacity 0.3s ease;">
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <div style="flex: 1;">
+                                <label
+                                    style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px;">開始時刻</label>
+                                <input type="time" id="sleepTimeStartInput" style="height: 44px; width: 100%;"
+                                    onchange="saveSettingsAuto()">
+                            </div>
+                            <span style="color: var(--color-text-secondary);">～</span>
+                            <div style="flex: 1;">
+                                <label
+                                    style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px;">終了時刻</label>
+                                <input type="time" id="sleepTimeEndInput" style="height: 44px; width: 100%;"
+                                    onchange="saveSettingsAuto()">
+                            </div>
+                        </div>
+
+                        <label
+                            style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                            <span style="font-size: 14px;">おやすみ明けに通知を送る</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="sleepTimeNotifyOnEndInput" checked
+                                    onchange="toggleSleepTimeAutoUpdate(); saveSettingsAuto()">
+                                <span class="slider"></span>
+                            </label>
+                        </label>
+
+                        <div id="sleepTimeAutoUpdateContainer" style="transition: opacity 0.3s ease;">
+                            <label
+                                style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                <span style="font-size: 14px;">明け通知のあとも自動更新を続ける</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="sleepTimeAutoUpdateInput" onchange="saveSettingsAuto()">
+                                    <span class="slider"></span>
+                                </label>
+                            </label>
+                            <div class="help-text" style="margin-top: 4px;">※OFFの場合、通知確認後に手動でタッチしてから次のタイマーが開始します</div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+
                 <div class="form-group">
                     <label>固定リセット時刻（複数設定可能）</label>
                     <div id="addFixedTimeContainer"
@@ -1145,6 +1200,11 @@
         let cooldownMinutes = 180;
         let actionTimeSeconds = 30;
         let notificationAdvanceSeconds = 10;
+        let sleepTimeEnabled = false;
+        let sleepTimeStart = '';
+        let sleepTimeEnd = '';
+        let sleepTimeNotifyOnEnd = true;
+        let sleepTimeAutoUpdate = false;
 
         // --- Web Push Settings ---
         const VAPID_PUBLIC_KEY = 'BDhsA4_i9Dd6zh0p0QoGCL-tyXG1rTbmqz_1-l3KE0qtViJ01pS25EDZeaBGn0jnDR2YLTezFHX8qFcEPBNI4Lg';
@@ -1209,7 +1269,13 @@
                         cooldownMinutes: cooldownMinutes,
                         actionTimeSeconds: actionTimeSeconds,
                         advanceSeconds: notificationAdvanceSeconds,
-                        fixedTimes: fixedTimes
+                        fixedTimes: fixedTimes,
+                        // おやすみタイム
+                        sleepTimeEnabled: sleepTimeEnabled && sleepTimeStart && sleepTimeEnd && (sleepTimeStart !== sleepTimeEnd),
+                        sleepTimeStart: sleepTimeStart,
+                        sleepTimeEnd: sleepTimeEnd,
+                        sleepTimeNotifyOnEnd: sleepTimeNotifyOnEnd,
+                        sleepTimeAutoUpdate: sleepTimeAutoUpdate
                     })
                 });
                 console.log('Worker Sync: Scheduled in', delaySeconds, 'seconds (autoUpdate:', autoUpdateNext, ', advance:', notificationAdvanceSeconds, ')');
@@ -1349,6 +1415,11 @@
                 autoUpdateNext = settings.autoUpdateNext !== undefined ? settings.autoUpdateNext : true;
                 muteNotifications = settings.muteNotifications !== undefined ? settings.muteNotifications : false;
                 themeMode = settings.themeMode || 'system';
+                sleepTimeEnabled = settings.sleepTimeEnabled || false;
+                sleepTimeStart = settings.sleepTimeStart || '';
+                sleepTimeEnd = settings.sleepTimeEnd || '';
+                sleepTimeNotifyOnEnd = settings.sleepTimeNotifyOnEnd !== undefined ? settings.sleepTimeNotifyOnEnd : true;
+                sleepTimeAutoUpdate = settings.sleepTimeAutoUpdate || false;
                 nextNotificationTime = settings.nextNotificationTime ? new Date(settings.nextNotificationTime) : null;
                 lastNotifiedTime = settings.lastNotifiedTime ? new Date(settings.lastNotifiedTime) : null;
                 lastCompletedTime = settings.lastCompletedTime ? new Date(settings.lastCompletedTime) : null;
@@ -1424,6 +1495,17 @@
             document.getElementById('preventFocusOnNotificationClickInput').checked = preventFocusOnNotificationClick;
             document.getElementById('showTitleTimerInput').checked = showTitleTimer;
             document.getElementById('autoUpdateNextInput').checked = autoUpdateNext;
+
+            const sleepEnabledEl = document.getElementById('sleepTimeEnabledInput');
+            if (sleepEnabledEl) {
+                sleepEnabledEl.checked = sleepTimeEnabled;
+                document.getElementById('sleepTimeStartInput').value = sleepTimeStart;
+                document.getElementById('sleepTimeEndInput').value = sleepTimeEnd;
+                document.getElementById('sleepTimeNotifyOnEndInput').checked = sleepTimeNotifyOnEnd;
+                document.getElementById('sleepTimeAutoUpdateInput').checked = sleepTimeAutoUpdate;
+                toggleSleepTimeFields();
+            }
+
             document.getElementById('colorPicker').value = primaryColor;
 
             document.getElementById('remindTitleInput').value = remindTitle;
@@ -1470,10 +1552,20 @@
             themeMode = themeCheck ? themeCheck.value : 'system';
             primaryColor = document.getElementById('colorPicker').value;
 
+            const sleepEnabledEl = document.getElementById('sleepTimeEnabledInput');
+            if (sleepEnabledEl) {
+                sleepTimeEnabled = sleepEnabledEl.checked;
+                sleepTimeStart = document.getElementById('sleepTimeStartInput').value;
+                sleepTimeEnd = document.getElementById('sleepTimeEndInput').value;
+                sleepTimeNotifyOnEnd = document.getElementById('sleepTimeNotifyOnEndInput').checked;
+                sleepTimeAutoUpdate = document.getElementById('sleepTimeAutoUpdateInput').checked;
+            }
+
             const settings = {
                 fixedTimes, cooldownMinutes, actionTimeSeconds, notificationAdvanceSeconds, notifyOnComplete, notificationSound,
                 requireInteraction, preventFocusOnNotificationClick,
                 preventSleep, showTitleTimer, autoUpdateNext, muteNotifications, themeMode,
+                sleepTimeEnabled, sleepTimeStart, sleepTimeEnd, sleepTimeNotifyOnEnd, sleepTimeAutoUpdate,
                 nextNotificationTime: nextNotificationTime ? nextNotificationTime.toISOString() : null,
                 lastNotifiedTime: lastNotifiedTime ? lastNotifiedTime.toISOString() : null,
                 lastCompletedTime: lastCompletedTime ? lastCompletedTime.toISOString() : null,
@@ -1561,6 +1653,39 @@
                 focusInput.disabled = true;
             }
             saveSettings();
+        }
+
+        function toggleSleepTimeFields() {
+            const isEnabled = document.getElementById('sleepTimeEnabledInput').checked;
+            const fieldsContainer = document.getElementById('sleepTimeFields');
+            const inputs = fieldsContainer.querySelectorAll('input:not(#sleepTimeEnabledInput)');
+
+            if (isEnabled) {
+                fieldsContainer.style.opacity = '1';
+                fieldsContainer.style.pointerEvents = 'auto';
+                inputs.forEach(input => input.disabled = false);
+            } else {
+                fieldsContainer.style.opacity = '0.5';
+                fieldsContainer.style.pointerEvents = 'none';
+                inputs.forEach(input => input.disabled = true);
+            }
+            toggleSleepTimeAutoUpdate(); // 内側のON/OFFも連動同期
+        }
+
+        function toggleSleepTimeAutoUpdate() {
+            const isNotifyOnEnd = document.getElementById('sleepTimeNotifyOnEndInput').checked;
+            const autoUpdateContainer = document.getElementById('sleepTimeAutoUpdateContainer');
+            const autoUpdateInput = document.getElementById('sleepTimeAutoUpdateInput');
+
+            if (isNotifyOnEnd) {
+                autoUpdateContainer.style.opacity = '1';
+                autoUpdateContainer.style.pointerEvents = 'auto';
+                autoUpdateInput.disabled = false;
+            } else {
+                autoUpdateContainer.style.opacity = '0.5';
+                autoUpdateContainer.style.pointerEvents = 'none';
+                autoUpdateInput.disabled = true;
+            }
         }
 
         function setThemeMode(mode) {

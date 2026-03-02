@@ -429,12 +429,77 @@ export default {
 
           // ★ドリフト防止: advanceSecondsぶんだけ通知が早く届いた場合、
           // 「本来の通知予定時刻 = now + advanceSeconds」を基準として次を計算する
-          // これにより、毎サイクル「本来の予定時刻からadvanceSeconds前」をキープし続けられる
           const advanceSeconds = typeof message.body.advanceSeconds === 'number' ? message.body.advanceSeconds : 0;
           const idealNow = new Date(now.getTime() + advanceSeconds * 1000);
 
           // リセット時刻を考慮した次のターゲット時刻を計算（idealNowを基準にする）
-          const nextDate = getNextTargetDate(idealNow, fixedTimes, cooldownMinutes);
+          let nextDate = getNextTargetDate(idealNow, fixedTimes, cooldownMinutes);
+
+          // --- おやすみタイム（通知保留）の判定と処理 ---
+          const { sleepTimeEnabled, sleepTimeStart, sleepTimeEnd, sleepTimeNotifyOnEnd, sleepTimeAutoUpdate } = message.body;
+
+          let overrideAutoUpdate = true; // 基本は継続
+
+          if (sleepTimeEnabled && typeof sleepTimeStart === 'string' && typeof sleepTimeEnd === 'string') {
+            const [sh, sm] = sleepTimeStart.split(':').map(Number);
+            const [eh, em] = sleepTimeEnd.split(':').map(Number);
+
+            // nextDate の日付を基準に、おやすみ開始時刻と終了時刻を Date オブジェクト化
+            // ※ Start > End (例: 23:00〜07:00) のような日跨ぎを考慮
+            const startDate = new Date(nextDate);
+            startDate.setHours(sh, sm, 0, 0);
+
+            let endDate = new Date(nextDate);
+            endDate.setHours(eh, em, 0, 0);
+
+            // もし開始時刻が終了時刻より後ろなら、終了時刻は翌日扱い
+            if (startDate > endDate) {
+              endDate.setDate(endDate.getDate() + 1);
+            }
+
+            // 日跨ぎ設定で、nextDate がすでに翌日の未明（例: 02:00）の場合、
+            // startDate(23:00) が nextDate より未来になってしまうため、開始を1日前にずらす
+            if (startDate > endDate) {
+              // ...これは上の処理で解決済みだが、別のパターンとして
+              // nextDate=02:00, sh=23:00, eh=07:00 の場合:
+              // startDate=今日23:00, endDate=明日07:00 となり、02:00 が範囲外になる。
+              // これを防ぐため、endDate > startDate の状態を作った上で、
+              // nextDate が startDate より前ならば、全体を1日前にシフトして判定する
+            }
+
+            // 正確な範囲判定のための日付調整
+            let checkStart = new Date(startDate);
+            let checkEnd = new Date(endDate);
+            if (sh > eh) { // 日跨ぎ設定 (例: 22:00 - 07:00)
+              if (nextDate.getHours() < eh || (nextDate.getHours() === eh && nextDate.getMinutes() < em)) {
+                // nextDateが深夜〜早朝の場合、開始時刻は「前日」
+                checkStart.setDate(checkStart.getDate() - 1);
+                checkEnd = new Date(nextDate);
+                checkEnd.setHours(eh, em, 0, 0);
+              } else {
+                // nextDateが夜の場合、終了時刻は「翌日」
+                checkEnd.setDate(checkEnd.getDate() + 1);
+              }
+            }
+
+            // 予定時刻がおやすみタイムに含まれているか
+            if (nextDate >= checkStart && nextDate < checkEnd) {
+              console.log(`[Sleep Time] nextDate(${nextDate.toISOString()}) is inside sleep period (${checkStart.toISOString()} - ${checkEnd.toISOString()})`);
+
+              if (sleepTimeNotifyOnEnd) {
+                // 明けに通知を送る：ターゲット時刻を終了時刻に強制スライド
+                nextDate = new Date(checkEnd);
+                overrideAutoUpdate = !!sleepTimeAutoUpdate; // 明け通知後の自動更新は設定に従う
+                console.log(`[Sleep Time] Rescheduled to end time: ${nextDate.toISOString()}, nextAutoUpdate=${overrideAutoUpdate}`);
+              } else {
+                // 明けに通知を送らない：ここでキューのチェーンを完全にストップ
+                console.log(`[Sleep Time] sleepTimeNotifyOnEnd is false. Stopping queue chain.`);
+                message.ack();
+                return; // 以降の登録処理を行わず終了
+              }
+            }
+          }
+
           // 操作時間を加味した遅延秒数、前倒し分を差し引く
           const nextDelaySeconds = Math.floor((nextDate.getTime() - now.getTime()) / 1000) + actionTimeSeconds - advanceSeconds;
 
@@ -446,12 +511,14 @@ export default {
             {
               subscription,
               payload,
-              autoUpdate: true,
+              autoUpdate: overrideAutoUpdate, // おやすみ明け処理などで上書きされた値
               cooldownMinutes,
               actionTimeSeconds,
               advanceSeconds,
               fixedTimes,
-              scheduleId: nextScheduleId
+              scheduleId: nextScheduleId,
+              // 引き続きおやすみ設定を次へリレーする
+              sleepTimeEnabled, sleepTimeStart, sleepTimeEnd, sleepTimeNotifyOnEnd, sleepTimeAutoUpdate
             },
             { delaySeconds: Math.max(0, nextDelaySeconds) }
           );
