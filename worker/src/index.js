@@ -300,12 +300,12 @@ export default {
       if (!subId) {
         return new Response("Missing subId", { status: 400, headers: corsHeaders });
       }
-      const activeSchedule = await env.PUSH_STATUS.get(`active_schedule_${subId}`);
-      const stopped = await env.PUSH_STATUS.get(`stop_${subId}`);
+      const stateStr = await env.PUSH_STATUS.get(`state_${subId}`);
+      const state = stateStr ? JSON.parse(stateStr) : { activeScheduleId: null, isStopped: false };
       return new Response(JSON.stringify({
         subId,
-        activeScheduleId: activeSchedule,
-        isStopped: stopped === "true",
+        activeScheduleId: state.activeScheduleId,
+        isStopped: state.isStopped,
       }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -318,10 +318,8 @@ export default {
         const body = await request.json();
         const { subscription } = body;
         const subId = await getSubscriptionId(subscription);
-        // KV に停止フラグをセット (24時間で自動消去されるように設定)
-        await env.PUSH_STATUS.put(`stop_${subId}`, "true", { expirationTtl: 86400 });
-        // 有効なスケジュールも破棄してゴーストQueueを無効化
-        await env.PUSH_STATUS.delete(`active_schedule_${subId}`);
+        // KV に停止・スケジュールクリア状態をJSONで上書き (24時間で消去)
+        await env.PUSH_STATUS.put(`state_${subId}`, JSON.stringify({ isStopped: true, activeScheduleId: null }), { expirationTtl: 86400 });
         return new Response("Stopped", { status: 200, headers: corsHeaders });
       } catch (e) {
         return new Response(e.message, { status: 500, headers: corsHeaders });
@@ -339,12 +337,10 @@ export default {
         }
 
         const subId = await getSubscriptionId(subscription);
-        // 新しいスケジュールが来たので停止フラグを消去
-        await env.PUSH_STATUS.delete(`stop_${subId}`);
 
-        // 重複実行防止のため、スケジュールの「バージョン（タイムスタンプ）」を発行・記録
+        // 重複実行防止のため、スケジュールの「バージョン（タイムスタンプ）」を発行・記録し、停止フラグも一緒に更新
         const scheduleId = Date.now().toString();
-        await env.PUSH_STATUS.put(`active_schedule_${subId}`, scheduleId, { expirationTtl: 86400 * 7 }); // 7日間維持
+        await env.PUSH_STATUS.put(`state_${subId}`, JSON.stringify({ isStopped: false, activeScheduleId: scheduleId }), { expirationTtl: 86400 * 7 }); // 7日間維持
 
         await env.PUSH_QUEUE.send(
           { subscription, payload, autoUpdate, cooldownMinutes, actionTimeSeconds, fixedTimes, scheduleId },
@@ -396,9 +392,10 @@ export default {
         const { subscription, payload, autoUpdate, cooldownMinutes, actionTimeSeconds, fixedTimes, scheduleId } = message.body;
 
         const subId = await getSubscriptionId(subscription);
-        const isStopped = await env.PUSH_STATUS.get(`stop_${subId}`);
+        const stateStr = await env.PUSH_STATUS.get(`state_${subId}`);
+        const state = stateStr ? JSON.parse(stateStr) : { activeScheduleId: null, isStopped: false };
 
-        if (isStopped === "true") {
+        if (state.isStopped) {
           console.log(`[Queue] Push cancelled for ${subId} (Stopped by user)`);
           message.ack();
           continue;
@@ -406,9 +403,8 @@ export default {
 
         // 新しくスケジュールされたQueueが存在し、このQueueが古い（ゴースト）場合は破棄する
         if (scheduleId) {
-          const activeScheduleId = await env.PUSH_STATUS.get(`active_schedule_${subId}`);
-          if (scheduleId !== activeScheduleId) {
-            console.log(`[Queue] Discarding outdated schedule queue (Got: ${scheduleId}, Active: ${activeScheduleId})`);
+          if (scheduleId !== state.activeScheduleId) {
+            console.log(`[Queue] Discarding outdated schedule queue (Got: ${scheduleId}, Active: ${state.activeScheduleId})`);
             message.ack();
             continue;
           }
@@ -505,7 +501,7 @@ export default {
 
           // 新しいスケジュールIDを生成して更新（これ以降、既存の別スレッドのQueueはすべて破棄される）
           const nextScheduleId = Date.now().toString();
-          await env.PUSH_STATUS.put(`active_schedule_${subId}`, nextScheduleId, { expirationTtl: 86400 * 7 });
+          await env.PUSH_STATUS.put(`state_${subId}`, JSON.stringify({ isStopped: false, activeScheduleId: nextScheduleId }), { expirationTtl: 86400 * 7 });
 
           await env.PUSH_QUEUE.send(
             {

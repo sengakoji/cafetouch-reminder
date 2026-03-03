@@ -93,12 +93,13 @@ test.describe('Worker API / KV 更新確認', () => {
         const subId = hash.toString('base64')
             .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-        // /debug/status で stop フラグを確認
+        // /debug/status で stop フラグと activeScheduleIdのクリアを確認
         const statusRes = await request.get(
             `${WORKER_URL}/debug/status?subId=${encodeURIComponent(subId)}&token=${encodeURIComponent(DEBUG_TOKEN)}`
         );
         expect(statusRes.status()).toBe(200);
         const status = await statusRes.json();
         expect(status.isStopped).toBe(true);
+        expect(status.activeScheduleId).toBeNull();
     });
 });
