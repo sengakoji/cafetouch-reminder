@@ -4,7 +4,10 @@
   "description": "<img src=\"screenshot.jpg\" width=\"50%\">",
   "main": "sw.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "cap-build": "npx esbuild cap-entry.js --bundle --outfile=cap-bundle.js --minify",
+    "build": "npm run cap-build && pwsh -Command \"New-Item -ItemType Directory -Force -Path www; Copy-Item index.html, sw.js, cap-bundle.js, site.webmanifest, *.png, favicon.ico, favicon.svg -Destination www -Force\"",
+    "build:android": "npm run build && npx cap sync android"
   },
   "repository": {
     "type": "git",
@@ -19,7 +22,14 @@
   },
   "homepage": "https://github.com/sengakoji/cafetouch-reminder#readme",
   "devDependencies": {
+    "@capacitor/cli": "^8.1.0",
     "@playwright/test": "^1.58.2",
-    "dotenv": "^17.3.1"
+    "dotenv": "^17.3.1",
+    "esbuild": "^0.27.3"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/local-notifications": "^8.0.1"
   }
 }

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">cafetouch</string>
+    <string name="title_activity_main">cafetouch</string>
+    <string name="package_name">com.sengakoji.cafetouch</string>
+    <string name="custom_url_scheme">com.sengakoji.cafetouch</string>
+</resources>
