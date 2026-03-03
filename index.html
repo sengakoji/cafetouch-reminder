@@ -970,19 +970,21 @@
                     <div class="help-text">「カフェタッチ完了」ボタンを押した際にも通知でお知らせします</div>
                 </div>
 
-                <div class="setting-item">
-                    <div class="setting-row">
-                        <label for="notificationSoundInput" style="cursor: pointer; margin-bottom: 0;">通知時に音を鳴らす</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="notificationSoundInput" checked>
-                            <span class="slider"></span>
-                        </label>
+                <div class="show-only-pc">
+                    <!-- <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;"> -->
+                    <div class="setting-item" style="margin-top: 12px;">
+                        <div class="setting-row">
+                            <label for="notificationSoundInput"
+                                style="cursor: pointer; margin-bottom: 0;">通知時に音を鳴らす</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="notificationSoundInput" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="help-text">※OSやブラウザ側の通知設定が優先されます</div>
                     </div>
-                    <div class="help-text">※OSやブラウザ側の通知設定が優先されます</div>
-                </div>
 
-                <div class="show-only-pc" style="margin-top: 12px;">
-                    <div class="setting-item">
+                    <div class="setting-item" style="margin-top: 12px;">
                         <div class="setting-row">
                             <label for="requireInteractionInput"
                                 style="cursor: pointer; margin-bottom: 0;">通知を自動で消さない（クリックで完了）</label>
