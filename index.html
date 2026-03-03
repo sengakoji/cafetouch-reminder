@@ -1398,6 +1398,29 @@
             };
         }
 
+        let syncScheduleTimeout = null;
+
+        function debouncedSyncScheduleToWorker(targetDate) {
+            if (syncScheduleTimeout) {
+                clearTimeout(syncScheduleTimeout);
+            }
+            syncScheduleTimeout = setTimeout(() => {
+                syncScheduleTimeout = null;
+                syncScheduleToWorker(targetDate);
+            }, 2000);
+        }
+
+        // ページが隠れた（閉じられた、バックグラウンドに行った）時に未送信のスケジュールがあれば即座に送信する
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && syncScheduleTimeout) {
+                clearTimeout(syncScheduleTimeout);
+                syncScheduleTimeout = null;
+                if (isMobile && nextNotificationTime) {
+                    syncScheduleToWorker(nextNotificationTime);
+                }
+            }
+        });
+
         async function syncScheduleToWorker(targetDate) {
             if (!targetDate) return;
             const now = new Date().getTime();
@@ -1742,9 +1765,9 @@
             };
             localStorage.setItem('cafeTouchSettings', JSON.stringify(settings));
 
-            // モバイルの場合、設定変更を即座に Worker 側のスケジュールにも反映させる
+            // モバイルの場合、設定変更を即座に Worker 側のスケジュールにも反映させる(デバウンス処理)
             if (isMobile && nextNotificationTime) {
-                syncScheduleToWorker(nextNotificationTime);
+                debouncedSyncScheduleToWorker(nextNotificationTime);
             }
         }
 
@@ -2010,10 +2033,10 @@
             saveSettings();
             updateTimerLogic(true);
 
-            // モバイルの場合はCloudflare Workerにスケジュールを同期する
+            // モバイルの場合はCloudflare Workerにスケジュールを同期する(デバウンス処理)
             // ★自動更新(skipSync=true)の場合は、Worker側が既にチェーンを開始しているため同期をスキップして二重登録を防ぐ
             if (isMobile && nextNotificationTime && !isRetroactive && !skipSync) {
-                syncScheduleToWorker(nextNotificationTime);
+                debouncedSyncScheduleToWorker(nextNotificationTime);
             }
         }
 
