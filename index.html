@@ -1010,56 +1010,6 @@
                     </div>
                 </div>
 
-                <!-- PWA専用: 通知設定の案内 -->
-                <div id="pwaAdvancedSettings" class="show-only-mobile-pwa"
-                    style="margin-top: 16px; padding: 16px; background: rgba(var(--color-teal-500-rgb), 0.05); border-radius: 12px; border: 1px solid rgba(var(--color-teal-500-rgb), 0.1); display: none;">
-                    <h4 style="margin: 0 0 12px 0; font-size: 14px; display: flex; align-items: center; gap: 6px;">
-                        <span style="font-size: 16px;">🚀</span> PWA 版 通知設定ガイド
-                    </h4>
-
-                    <div class="help-text" style="margin-bottom: 12px; font-size: 13px;" id="pwaNotifDesc">
-                        ポップアップ（画面上部への通知）やバイブレーション（振動）を有効にするには、OS側の設定変更が必要です。
-                    </div>
-
-                    <div id="pwaGuidePath" class="help-text"
-                        style="padding: 10px; background: var(--color-surface); border-radius: 6px; border-left: 3px solid var(--color-teal-500); font-size: 13px; margin-bottom: 16px;">
-                        💡 動作しない場合は、デバイスの<br>
-                        <span id="pwaOSPathText" style="font-weight: 500;">[設定] &gt; [通知]</span><br>
-                        からポップアップ、バイブレーションをオンにしてください
-                    </div>
-
-                    <button class="btn btn-secondary" style="width: 100%; font-size: 13px; padding: 8px;"
-                        onclick="checkNotificationPermissionManual()">
-                        🔔 OS設定を確認する手順
-                    </button>
-                </div>
-
-
-                <!-- 非PWAモバイル用: インストール誘導 -->
-                <div class="show-only-mobile-browser"
-                    style="margin-top: 16px; padding: 12px; background: rgba(var(--color-teal-500-rgb), 0.05); border-radius: 8px; border: 1px dashed rgba(var(--color-teal-500-rgb), 0.3); font-size: 13px;">
-                    <strong>ホーム画面に追加（インストール）</strong>すると、端末の振動や画面上部へのポップアップ通知がアプリごとに設定しやすくなります。
-                    Android版Microsoft Edgeをお使いの方は、設定の項目が異なるため一時的にGoogle Chromeを使用してホーム画面に追加(インストール)することをお勧めします。
-
-                    <!-- Chrome限定インストールボタン (beforeinstallpromptが来た時のみ表示) -->
-                    <button id="pwaInstallBtn" class="btn btn-secondary"
-                        style="margin-top: 12px; padding: 10px; font-size: 13px; display: none;">
-                        📲 ホーム画面に追加する
-                    </button>
-
-                    <!-- iOS/iPadOS 向けガイド (JSで isIOS && !isStandalone の時のみ表示) -->
-                    <div id="iosInstallGuide"
-                        style="display: none; margin-top: 12px; padding: 10px; background: var(--color-surface); border-radius: 6px; border-left: 3px solid var(--color-teal-500); line-height: 1.6;">
-                        📤 ホーム画面への追加方法：<br>
-                        ブラウザの<strong>共有ボタン</strong>をタップして、
-                        <strong>「ホーム画面に追加」</strong>を選んでください。<br>
-                        <span style="color: var(--color-text-secondary); font-size: 12px;">
-                            ※ Safari では画面下部、Chrome・Edge では
-                            アドレスバー付近またはメニュー内にあります。
-                        </span>
-                    </div>
-                </div>
-
                 <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
 
                 <div class="setting-item">
@@ -1318,15 +1268,36 @@
 
                         <!-- スマホ環境用のお詫び文・環境ごとの違い -->
                         <div id="instructionNotice"
-                            style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); padding: 12px; border-radius: 8px; margin: 16px 0; font-size: 13px; line-height: 1.5;">
-                            <strong style="color: #FFC107;">📱 スマホ環境でのご利用について</strong>
+                            style="background: rgba(var(--color-teal-500-rgb), 0.05); border: 1px solid rgba(var(--color-teal-500-rgb), 0.3); padding: 12px; border-radius: 8px; margin: 16px 0; font-size: 13px; line-height: 1.5;">
+                            <strong
+                                style="color: var(--color-teal-600); display: flex; align-items: center; gap: 4px;">📱
+                                スマホ環境でのご利用について</strong>
                             <ul style="margin: 8px 0 0 0; padding-left: 20px; color: var(--color-text-secondary);">
-                                <li><strong>共通</strong>:
-                                    クラウド経由でPush通知を送るため、環境や無料枠の制限により通知が10秒〜数分程度遅れる場合があります。</li>
-                                <li><strong>Android</strong>:
-                                    ホーム画面に追加（インストール）すると、振動・ポップアップ通知の設定が行いやすくなります。</li>
-                                <li><strong>iOS (iPhone)</strong>:
-                                    「ホーム画面に追加」して起動しないとWeb Push通知が利用できません。また、iOSの仕様上バックグラウンドでの長時間の自動更新が不安定になる場合があります。
+                                <li style="margin-bottom: 8px;"><strong>共通</strong>:
+                                    クラウド経由でPush通知を送るため、環境や制限により通知が数十秒〜数分程度遅れる場合があります。<br>
+                                    <span style="color: var(--color-teal-600); font-weight: 500;">💡
+                                        確実な通知のために、端末の「バッテリー最適化」を当アプリに対して「制限なし」や「オフ」に設定することをおすすめします。</span>
+                                </li>
+                                <li class="show-only-mobile-browser" style="margin-bottom: 8px;">
+                                    <strong>端末へのインストール（推奨）</strong>:
+                                    ホーム画面に追加（インストール）すると、振動やポップアップ通知等の設定がOS側で行いやすくなります。<br>
+                                    ・<strong>Android</strong>: Android版Edgeをお使いの方は、一時的にChromeを使用してインストールすることをお勧めします。<br>
+                                    <button id="pwaInstallBtn" class="btn btn-secondary"
+                                        style="margin-top: 8px; padding: 6px 12px; font-size: 12px; display: none;">📲
+                                        ホーム画面に追加する</button>
+                                </li>
+                                <li class="show-only-mobile-browser" id="iosInstallGuide"
+                                    style="display: none; margin-bottom: 8px;"><strong>iOS (iPhone)</strong>:
+                                    ブラウザの<strong>共有ボタン</strong>から<strong>「ホーム画面に追加」</strong>を選んでください。ホーム画面から起動しないとWeb
+                                    Push通知が利用できません。またiOSの仕様上、バックグラウンドでの長時間の自動更新が不安定になる場合があります。
+                                </li>
+                                <li class="show-only-mobile-pwa" id="pwaAdvancedSettings" style="display: none;">
+                                    <strong>通知のポップアップと振動</strong>: 画面上部への通知や振動を有効にするには、OS側の設定変更が必要です。<br>
+                                    動作しない場合は、デバイスの<strong id="pwaOSPathText">[設定] &gt;
+                                        [通知]</strong>から本アプリの通知を許可し、ポップアップやバイブレーションをオンにしてください。<br>
+                                    <button class="btn btn-secondary"
+                                        style="margin-top: 8px; font-size: 12px; padding: 6px 12px;"
+                                        onclick="checkNotificationPermissionManual()">🔔 OS設定を確認する手順</button>
                                 </li>
                             </ul>
                         </div>
