@@ -1293,9 +1293,6 @@
                     <button class="btn-text" style="color: #c0152f; font-size: 13px;" onclick="resetApp()">⚠️
                         すべての設定を削除する</button>
                     <div class="help-text">設定などすべてのデータが削除されます</div>
-
-                    <button class="btn-text" style="color: var(--color-teal-600); font-size: 13px; margin-top: 16px;"
-                        onclick="testUpdateDialog()">🔧 [テスト用] アップデートダイアログを確認する</button>
                 </div>
 
             </div>
@@ -1955,39 +1952,6 @@
                 if (n1 < n2) return -1;
             }
             return 0;
-        }
-
-        // [デバッグ用] アップデートダイアログのモックテスト用関数
-        async function testUpdateDialog() {
-            try {
-                // Capacitor Dialogが使えないPCブラウザ用に標準のconfirmでフォールバックしてテスト
-                const useNativeDialog = !!Dialog && isNativeOS;
-                let isConfirmed = false;
-                const fakeVersion = "v9.9.9 (Test)";
-
-                if (useNativeDialog) {
-                    const { value } = await Dialog.confirm({
-                        title: 'アップデートのお知らせ',
-                        message: `新しいバージョン (${fakeVersion}) が利用可能です。\nダウンロードページを開きますか？`,
-                        okButtonTitle: 'はい',
-                        cancelButtonTitle: 'いいえ'
-                    });
-                    isConfirmed = value;
-                } else {
-                    isConfirmed = confirm(`[テスト] 新しいバージョン (${fakeVersion}) が利用可能です。\nダウンロードページを開きますか？`);
-                }
-
-                if (isConfirmed) {
-                    if (useNativeDialog && Browser) {
-                        await Browser.open({ url: 'https://github.com/sengakoji/cafetouch-reminder/releases' });
-                    } else {
-                        window.open('https://github.com/sengakoji/cafetouch-reminder/releases', '_blank');
-                    }
-                }
-            } catch (err) {
-                console.error("Test dialog error:", err);
-                alert("テストダイアログの表示に失敗しました。\n" + err);
-            }
         }
 
         function toggleFocusSetting() {
