@@ -1293,6 +1293,9 @@
                     <button class="btn-text" style="color: #c0152f; font-size: 13px;" onclick="resetApp()">⚠️
                         すべての設定を削除する</button>
                     <div class="help-text">設定などすべてのデータが削除されます</div>
+
+                    <button class="btn-text" style="color: var(--color-teal-600); font-size: 13px; margin-top: 16px;"
+                        onclick="testUpdateDialog()">🔧 [テスト用] アップデートダイアログを確認する</button>
                 </div>
 
             </div>
@@ -1480,6 +1483,12 @@
         const isAndroid = /Android/i.test(navigator.userAgent);
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
         const isNativeOS = !!window.Capacitor?.isNativePlatform();
+
+        // Capacitor Plugins
+        const LocalNotifications = window.Capacitor?.Plugins?.LocalNotifications;
+        const App = window.Capacitor?.Plugins?.App;
+        const Dialog = window.Capacitor?.Plugins?.Dialog;
+        const Browser = window.Capacitor?.Plugins?.Browser;
 
         // Edge判定: PC版は Edg/、Android版は EdgA/ を使うのでスラッシュなしで両方キャッチ
         const isEdge = /Edg/i.test(navigator.userAgent);
@@ -1674,6 +1683,7 @@
 
                 lastScheduledSource = settings.lastScheduledSource || 'fixed';
                 enableVibration = settings.enableVibration !== undefined ? settings.enableVibration : true;
+                enableVibration = settings.enableVibration !== undefined ? settings.enableVibration : true;
                 isDelayedBySleepTime = settings.isDelayedBySleepTime || false;
             }
 
@@ -1763,6 +1773,11 @@
             updateNotificationStatus();
             updateMuteUI();
             updateEnvironmentGuide();
+
+            // ネイティブアプリ特有のアップデート通知処理
+            if (isNativeOS) {
+                checkNativeAppUpdate();
+            }
 
             if (nextNotificationTime && nextNotificationTime < new Date()) {
                 updateTimerLogic(true);
@@ -1876,6 +1891,103 @@
         function saveSettingsAndRecalculate() {
             saveSettings();
             recalculateNextNotificationTime();
+        }
+
+        async function checkNativeAppUpdate() {
+            if (!App || !Dialog || !Browser) return;
+
+            try {
+                // 1日に1回だけチェックする (API制限回避)
+                const lastCheck = localStorage.getItem('lastUpdateCheckDate');
+                const today = new Date().toDateString();
+                if (lastCheck === today) return;
+
+                // 現在のアプリバージョンを取得
+                const info = await App.getInfo();
+                const currentVersion = info.version; // e.g. "1.0.0"
+
+                // GitHub APIから最新のリリース情報を取得
+                const response = await fetch('https://api.github.com/repos/sengakoji/cafetouch-reminder/releases/latest');
+                if (!response.ok) return;
+
+                const data = await response.json();
+                let latestTag = data.tag_name; // e.g. "v1.0.1"
+                if (!latestTag) return;
+
+                // 先頭の 'v' や 'V' を取り除く
+                if (latestTag.toLowerCase().startsWith('v')) {
+                    latestTag = latestTag.substring(1);
+                }
+
+                // セマンティックバージョニングの単純比較
+                if (compareVersions(latestTag, currentVersion) > 0) {
+                    const { value } = await Dialog.confirm({
+                        title: 'アップデートのお知らせ',
+                        message: `新しいバージョン (v${latestTag}) が利用可能です。\nダウンロードページを開きますか？`,
+                        okButtonTitle: 'はい',
+                        cancelButtonTitle: 'いいえ'
+                    });
+
+                    if (value) {
+                        await Browser.open({ url: data.html_url || 'https://github.com/sengakoji/cafetouch-reminder/releases' });
+                    }
+                }
+
+                // チェックした日付を記録
+                localStorage.setItem('lastUpdateCheckDate', today);
+
+            } catch (err) {
+                console.error("Failed to check for updates:", err);
+            }
+        }
+
+        /**
+         * v1 > v2: 1, v1 < v2: -1, v1 == v2: 0 を返す
+         */
+        function compareVersions(v1, v2) {
+            const p1 = v1.split('.').map(Number);
+            const p2 = v2.split('.').map(Number);
+            const len = Math.max(p1.length, p2.length);
+            for (let i = 0; i < len; i++) {
+                const n1 = p1[i] || 0;
+                const n2 = p2[i] || 0;
+                if (n1 > n2) return 1;
+                if (n1 < n2) return -1;
+            }
+            return 0;
+        }
+
+        // [デバッグ用] アップデートダイアログのモックテスト用関数
+        async function testUpdateDialog() {
+            try {
+                // Capacitor Dialogが使えないPCブラウザ用に標準のconfirmでフォールバックしてテスト
+                const useNativeDialog = !!Dialog && isNativeOS;
+                let isConfirmed = false;
+                const fakeVersion = "v9.9.9 (Test)";
+
+                if (useNativeDialog) {
+                    const { value } = await Dialog.confirm({
+                        title: 'アップデートのお知らせ',
+                        message: `新しいバージョン (${fakeVersion}) が利用可能です。\nダウンロードページを開きますか？`,
+                        okButtonTitle: 'はい',
+                        cancelButtonTitle: 'いいえ'
+                    });
+                    isConfirmed = value;
+                } else {
+                    isConfirmed = confirm(`[テスト] 新しいバージョン (${fakeVersion}) が利用可能です。\nダウンロードページを開きますか？`);
+                }
+
+                if (isConfirmed) {
+                    if (useNativeDialog && Browser) {
+                        await Browser.open({ url: 'https://github.com/sengakoji/cafetouch-reminder/releases' });
+                    } else {
+                        window.open('https://github.com/sengakoji/cafetouch-reminder/releases', '_blank');
+                    }
+                }
+            } catch (err) {
+                console.error("Test dialog error:", err);
+                alert("テストダイアログの表示に失敗しました。\n" + err);
+            }
         }
 
         function toggleFocusSetting() {
