@@ -2231,7 +2231,11 @@
             try {
                 const pending = await LocalNotifications.getPending();
                 if (pending.notifications.length > 0) {
-                    await LocalNotifications.cancel({ notifications: pending.notifications });
+                    // 自動生成された未来スケジュール(ID: 1〜30)のみキャンセルし、直近の固有イベントの通知（完了時、テストなど）は消さない
+                    const toCancel = pending.notifications.filter(n => typeof n.id === 'number' && n.id >= 1 && n.id <= 30);
+                    if (toCancel.length > 0) {
+                        await LocalNotifications.cancel({ notifications: toCancel });
+                    }
                 }
             } catch (err) { }
         }
@@ -2397,8 +2401,9 @@
                         isDelayedNotification = (timeSinceScheduled > delayThreshold);
                     }
 
-                    // PC環境のみJSから直接Web通知を出す。モバイル(PWA/Native)はWorkerやOSが既に通知済みのため二重発火を防止する
-                    if (!isMobile) {
+                    // PC環境やネイティブアプリとして開いている最中は、JS側から直接通知を出す
+                    // (PWAの場合はService Workerがすでにプッシュしているため二重発火を防止)
+                    if (!isMobile || window.isNativePlatform) {
                         showNotification(remindTitle, remindBody, 'remind');
                     }
                     lastNotifiedTime = nextNotificationTime;
@@ -2861,11 +2866,12 @@
                 // ネイティブアプリの場合は Capacitor プラグインで直接表示
                 if (window.isNativePlatform) {
                     const { LocalNotifications } = window.Capacitor.Plugins;
+                    const idMap = { 'test': 99, 'remind': 98, 'complete': 97, 'normal': 96 };
                     LocalNotifications.schedule({
                         notifications: [{
                             title: title,
                             body: body,
-                            id: (type === 'test' ? 99 : 2)
+                            id: idMap[type] || 90
                         }]
                     });
                     return;
