@@ -2274,12 +2274,21 @@
             // 1. 通知の発信判定
             if (timeSinceScheduled >= 0) {
                 if (!lastNotifiedTime || lastNotifiedTime.getTime() !== nextNotificationTime.getTime()) {
-                    // 遅延判定（自動登録を止める閾値）: PCは60秒、モバイルは300秒(Androidのスリープ考慮)
-                    const delayThreshold = isMobile ? 300000 : 60000;
-                    isDelayedNotification = (timeSinceScheduled > delayThreshold);
+                    // おやすみ明けの場合はおやすみ専用の自動更新設定を参照する
+                    const effectiveAutoUpdateCheck = isDelayedBySleepTime ? sleepTimeAutoUpdate : autoUpdateNext;
 
-                    // モバイルでは Worker が Push 通知を送るためローカル通知は出さないが、Capacitorの場合は直接表示する
-                    if (!isMobile || window.isNativePlatform) {
+                    if (isMobile && effectiveAutoUpdateCheck) {
+                        // モバイル環境で自動更新ONの場合、OSやWorkerがバックグラウンドで通知ループを行っているため
+                        // JS凍結復帰時も遅延扱い(タイマーストップ)にせず、現在時刻まで状態を追いつかせる
+                        isDelayedNotification = false;
+                    } else {
+                        // PC環境や自動更新OFFの場合は、通知を確認できなかったものとして遅延ストップさせる
+                        const delayThreshold = isMobile ? 300000 : 60000;
+                        isDelayedNotification = (timeSinceScheduled > delayThreshold);
+                    }
+
+                    // PC環境のみJSから直接Web通知を出す。モバイル(PWA/Native)はWorkerやOSが既に通知済みのため二重発火を防止する
+                    if (!isMobile) {
                         showNotification(remindTitle, remindBody, 'remind');
                     }
                     lastNotifiedTime = nextNotificationTime;
