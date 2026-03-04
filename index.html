@@ -1175,9 +1175,9 @@
 
                 <div class="form-group show-only-mobile">
                     <label>通知を早める時間（秒）</label>
-                    <input type="number" id="notificationAdvanceInput" value="10" min="0" max="120"
+                    <input type="number" id="notificationAdvanceInput" value="0" min="0" max="120"
                         oninput="saveSettingsAuto()" style="width: 120px;">
-                    <div class="help-text">通信環境による遅延を補正するため、予定時刻の何秒前に通知を送るか設定できます（デフォルト: 10秒）</div>
+                    <div id="advanceHelpText" class="help-text">予定時刻から指定した時間早く通知を送ります</div>
                 </div>
 
                 <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
@@ -2041,6 +2041,51 @@
             }
         }
 
+        function generateFutureSchedules(firstTime, firstIsDelayed, maxCount = 30) {
+            let schedules = [];
+            let currentTarget = new Date(firstTime);
+            let currentIsDelayed = firstIsDelayed;
+
+            schedules.push(currentTarget);
+
+            for (let i = 1; i < maxCount; i++) {
+                // 自動更新するか判定
+                const effectiveAutoUpdate = currentIsDelayed ? sleepTimeAutoUpdate : autoUpdateNext;
+                if (!effectiveAutoUpdate) break;
+
+                // 仮想完了時間 (通知後から操作時間が経過した時刻)
+                let simulatedCompletionTime = new Date(currentTarget.getTime() + actionTimeSeconds * 1000);
+
+                // 次回時刻を計算 (クールタイム or 固定時間)
+                let cooldownEnd = new Date(simulatedCompletionTime.getTime() + cooldownMinutes * 60 * 1000);
+                let nextFixed = getNextFixedTime(simulatedCompletionTime);
+                let nextTime = (nextFixed && nextFixed < cooldownEnd) ? nextFixed : cooldownEnd;
+
+                currentIsDelayed = false;
+
+                // おやすみタイムの適用
+                if (sleepTimeEnabled && sleepTimeStart && sleepTimeEnd && (sleepTimeStart !== sleepTimeEnd)) {
+                    const sleepResult = applySleepTime(nextTime);
+                    if (sleepResult.isInside) {
+                        if (sleepTimeNotifyOnEnd) {
+                            nextTime = sleepResult.nextDate;
+                            currentIsDelayed = true;
+                        } else {
+                            // おやすみ明け通知がOFFの場合、自動更新ループは一旦途切れる
+                            break;
+                        }
+                    }
+                }
+
+                // 早める時間（秒）を適用（ネイティブ環境でも早回し通知として機能する）
+                let scheduledTime = new Date(nextTime.getTime() - (notificationAdvanceSeconds * 1000));
+
+                schedules.push(scheduledTime);
+                currentTarget = nextTime; // 次回計算のベースは本来の時間を使う
+            }
+            return schedules;
+        }
+
         async function syncScheduleToNative(targetTime) {
             if (!window.Capacitor || !window.Capacitor.Plugins.LocalNotifications) return;
             const { LocalNotifications } = window.Capacitor.Plugins;
@@ -2054,15 +2099,17 @@
                     if (requestStatus.display !== 'granted') return;
                 }
 
-                await LocalNotifications.schedule({
-                    notifications: [{
-                        title: remindTitle,
-                        body: remindBody,
-                        id: 1,
-                        schedule: { at: targetTime, allowWhileIdle: true }
-                    }]
-                });
-                console.log('Native Sync: Scheduled at', targetTime.toISOString());
+                // 最大30件先まで未来のスケジュールを予約する
+                const futureTimes = generateFutureSchedules(targetTime, isDelayedBySleepTime, 30);
+                const notifications = futureTimes.map((t, index) => ({
+                    title: remindTitle,
+                    body: remindBody,
+                    id: index + 1, // IDは1から連番で登録
+                    schedule: { at: t, allowWhileIdle: true }
+                }));
+
+                await LocalNotifications.schedule({ notifications });
+                console.log(`Native Sync: Scheduled ${notifications.length} notifications starting at ${targetTime.toISOString()}`);
             } catch (err) {
                 console.error("Native Sync Error:", err);
             }
