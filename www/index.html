@@ -647,15 +647,8 @@
         }
 
         .setting-item {
-            padding-bottom: 16px;
-            margin-bottom: 24px;
-            border-bottom: 1px solid var(--color-border);
-        }
-
-        .setting-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
         }
 
         .setting-row {
@@ -983,7 +976,7 @@
                     <div class="help-text">オフにすると、通知後に「カフェタッチ完了」ボタンを押すまで待機します</div>
                 </div>
 
-                <!-- <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;"> -->
+                <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 8px 0;">
 
                 <!-- グループ2: 通知・表示 -->
                 <div class="setting-item">
@@ -999,8 +992,8 @@
                 </div>
 
                 <div class="show-only-pc">
-                    <!-- <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;"> -->
-                    <div class="setting-item" style="margin-top: 12px;">
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 8px 0;">
+                    <div class="setting-item">
                         <div class="setting-row">
                             <label for="notificationSoundInput"
                                 style="cursor: pointer; margin-bottom: 0;">通知時に音を鳴らす</label>
@@ -1011,6 +1004,8 @@
                         </div>
                         <div class="help-text">※OSやブラウザ側の通知設定が優先されます</div>
                     </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 8px 0;">
 
                     <div class="setting-item" style="margin-top: 12px;">
                         <div class="setting-row">
@@ -1024,7 +1019,7 @@
                         <div class="help-text">有効にすると、リマインド通知が画面に残り続けます。<br>通知をクリックすると「カフェタッチ完了」として処理されます。</div>
 
 
-                        <div id="preventFocusWrapper" style="margin-left: 24px; margin-top: 16px; margin-bottom: 16px;">
+                        <div id="preventFocusWrapper" style="margin-left: 24px; margin-top: 8px; margin-bottom: 8px;">
                             <div id="preventFocusContainer" class="setting-row">
                                 <label for="preventFocusOnNotificationClickInput"
                                     style="cursor: pointer; margin-bottom: 0;">通知クリック時にウィンドウを開かない</label>
@@ -1036,23 +1031,23 @@
                             <div class="help-text">有効にすると、クリックしてもブラウザを最前面に表示しません</div>
                         </div>
                     </div>
-                </div>
 
-                <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 8px 0;">
 
-                <div class="setting-item">
-                    <div class="setting-row">
-                        <label for="showTitleTimerInput"
-                            style="cursor: pointer; margin-bottom: 0;">タブのタイトルに残り時間を表示する</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="showTitleTimerInput" checked>
-                            <span class="slider"></span>
-                        </label>
+                    <div class="setting-item" style="margin-top: 12px;">
+                        <div class="setting-row">
+                            <label for="showTitleTimerInput"
+                                style="cursor: pointer; margin-bottom: 0;">タブのタイトルに残り時間を表示する</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="showTitleTimerInput" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="help-text">別のタブを見ていても状況を確認できます（分単位の表示）</div>
                     </div>
-                    <div class="help-text">別のタブを見ていても状況を確認できます（分単位の表示）</div>
                 </div>
 
-
+                <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 8px 0;">
 
                 <!-- グループ3: メッセージ設定・状態・テスト -->
                 <div style="margin-bottom: 24px;">
@@ -1234,7 +1229,7 @@
                             </div>
 
                             <div
-                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0px;">
                                 <label for="sleepTimeNotifyOnEndInput"
                                     style="font-size: 14px; cursor: pointer; margin-bottom: 0;">保留した通知を受け取る</label>
                                 <label class="toggle-switch">
@@ -1245,7 +1240,7 @@
                             </div>
 
                             <div id="sleepTimeAutoUpdateWrapper"
-                                style="transition: opacity 0.3s ease; margin-left: 12px; padding-left: 12px; border-left: 2px solid var(--color-border); margin-top: 8px;">
+                                style="transition: opacity 0.3s ease; margin-left: 12px; padding-left: 12px; border-left: 2px solid var(--color-border); margin-top: 4px;">
                                 <div class="setting-row" style="margin-bottom: 0;">
                                     <label for="sleepTimeAutoUpdateInput"
                                         style="font-size: 14px; cursor: pointer; margin-bottom: 0;">保留した通知後に次回タイマーを開始する</label>
@@ -1255,12 +1250,15 @@
                                         <span class="slider"></span>
                                     </label>
                                 </div>
-                                <div class="help-text" style="margin-top: 4px;">※OFFの場合、通知確認後に手動で完了を押して次のタイマーを開始します
+                                <div class="help-text" style="margin-top: 0px; margin-bottom: 0;">
+                                    ※OFFの場合、通知確認後に手動で完了を押して次のタイマーを開始します
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
 
                 <div class="form-group">
                     <label>固定リセット時刻（複数設定可能）</label>
@@ -2848,16 +2846,6 @@
 
                 // モバイルPWAモード(Standalone)なら専用の通知設定ガイドを表示
                 if (isStandalone) {
-                    const titleTimerInput = document.getElementById('showTitleTimerInput');
-                    if (titleTimerInput) {
-                        const group = titleTimerInput.parentElement.parentElement;
-                        if (group && group.tagName === 'DIV') {
-                            group.style.display = 'none';
-                            const helpText = group.nextElementSibling;
-                            if (helpText && helpText.classList.contains('help-text')) helpText.style.display = 'none';
-                        }
-                    }
-
                     const pwaGuide = document.getElementById('pwaAdvancedSettings');
                     if (pwaGuide) {
                         pwaGuide.style.display = 'block';
