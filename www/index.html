@@ -822,62 +822,11 @@
         <h1>☕ カフェタッチリマインダー</h1>
 
         <div id="notificationStatus"
-            class="notification-status notification-disabled show-only-when-notification-needed">
-            通知が無効です。「通知を許可する」ボタンをクリックしてください
+            class="notification-status notification-disabled show-only-when-notification-needed"
+            style="cursor: pointer;" onclick="enableNotifications()">
+            ⚠️ ここをタップして通知を許可してください
         </div>
 
-        <div id="initialSetupCard" class="card" style="display: none;">
-            <h2 style="margin-top: 0; font-size: 18px;">初期設定</h2>
-
-            <div class="form-group show-only-when-notification-needed"
-                style="margin-top: 16px; padding: 12px; background: rgba(var(--color-teal-500-rgb), 0.08); border-radius: 8px; border: 1px solid rgba(var(--color-teal-500-rgb), 0.25);">
-                <label
-                    style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 14px; margin-bottom: 8px;">
-                    <svg width="18" height="18">
-                        <use href="#icon-bell"></use>
-                    </svg>
-                    通知を有効にする
-                </label>
-                <button class="btn btn-secondary" id="enableNotificationBtnInitial" onclick="enableNotifications()"
-                    style="width: 100%; padding: 12px;">
-                    通知を許可する
-                </button>
-                <div class="help-text" style="margin-top: 8px;">
-                    ブラウザ通知でカフェタッチのタイミングをお知らせします
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>ゲーム内でカフェタッチのクールタイムがリセットされる時刻（毎日この時間にリセット）</label>
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <div style="flex: 1;">
-                        <label for="initialMorningTime" style="font-size: 12px; opacity: 0.8;">1回目</label>
-                        <input type="time" id="initialMorningTime" value="04:00">
-                    </div>
-                    <div style="flex: 1;">
-                        <label for="initialEveningTime" style="font-size: 12px; opacity: 0.8;">2回目</label>
-                        <input type="time" id="initialEveningTime" value="16:00">
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="initialActionTime">カフェタッチにかかる時間（秒）</label>
-                <input type="number" id="initialActionTime" value="30" min="0">
-                <div class="help-text">
-                    カフェタッチの操作にかかる秒数です<br>通知後にこの秒数の間待機して、自動で次のタイマーを開始します
-                </div>
-            </div>
-
-            <div class="help-text"
-                style="margin-top: 20px; border-top: 1px solid var(--color-border); padding-top: 12px;">
-                💡 これらの設定やクールタイムの時間は、下の「設定」からいつでも変更できます
-            </div>
-
-            <div style="height: 16px;"></div>
-            <button class="btn btn-primary" id="initialSetupConfirmBtn"
-                onclick="confirmInitialSetup()">この内容で開始する</button>
-        </div>
 
         <div class="card">
             <div class="status">
@@ -1175,9 +1124,9 @@
 
                 <div class="form-group show-only-mobile">
                     <label>通知を早める時間（秒）</label>
-                    <input type="number" id="notificationAdvanceInput" value="10" min="0" max="120"
+                    <input type="number" id="notificationAdvanceInput" value="0" min="0" max="120"
                         oninput="saveSettingsAuto()" style="width: 120px;">
-                    <div class="help-text">通信環境による遅延を補正するため、予定時刻の何秒前に通知を送るか設定できます（デフォルト: 10秒）</div>
+                    <div id="advanceHelpText" class="help-text">予定時刻から指定した時間早く通知を送ります</div>
                 </div>
 
                 <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
@@ -1491,7 +1440,7 @@
         let lastScheduledSource = 'fixed';
         let primaryColor = '#06BBFA';
         let textColor = 'white';
-        let isInitialSetupDone = false;
+
 
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1583,7 +1532,7 @@
             const saved = localStorage.getItem('cafeTouchSettings');
             if (saved) {
                 const settings = JSON.parse(saved);
-                isInitialSetupDone = settings.isInitialSetupDone || false;
+
                 fixedTimes = settings.fixedTimes || [];
                 primaryColor = settings.primaryColor || '#06BBFA';
                 textColor = settings.textColor || 'white';
@@ -1663,14 +1612,12 @@
             }
 
 
-            if (!saved || !isInitialSetupDone) {
-                fixedTimes = fixedTimes.length > 0 ? fixedTimes : ['04:00', '16:00'];
-                document.getElementById('initialSetupCard').style.display = 'block';
+            if (!saved) {
+                fixedTimes = ['04:00', '16:00'];
             }
 
             document.getElementById('cooldownInput').value = cooldownMinutes;
             document.getElementById('actionTimeInput').value = actionTimeSeconds;
-            document.getElementById('initialActionTime').value = actionTimeSeconds;
             const advanceInput = document.getElementById('notificationAdvanceInput');
             if (advanceInput) advanceInput.value = notificationAdvanceSeconds;
             document.getElementById('notifyOnCompleteInput').checked = notifyOnComplete;
@@ -1707,18 +1654,14 @@
             updateNotificationStatus();
             updateMuteUI();
 
-            if (isInitialSetupDone) {
-                if (nextNotificationTime && nextNotificationTime < new Date()) {
-                    updateTimerLogic(true);
-                } else if (!nextNotificationTime) {
-                    recalculateNextNotificationTime();
-                }
+            if (nextNotificationTime && nextNotificationTime < new Date()) {
+                updateTimerLogic(true);
+            } else if (!nextNotificationTime) {
+                recalculateNextNotificationTime();
             }
         }
 
         function saveSettings() {
-            if (!isInitialSetupDone && !document.getElementById('initialSetupCard').style.display === 'none') return;
-
             cooldownMinutes = parseInt(document.getElementById('cooldownInput').value) || 180;
             actionTimeSeconds = parseInt(document.getElementById('actionTimeInput').value) || 0;
             notificationAdvanceSeconds = parseInt(document.getElementById('notificationAdvanceInput')?.value) || 0;
@@ -1757,7 +1700,7 @@
                 pendingAutoUpdateTime: pendingAutoUpdateTime ? pendingAutoUpdateTime.toISOString() : null,
                 isDelayedNotification,
                 remindTitle, remindBody, completeTitle,
-                lastScheduledSource, primaryColor, textColor, isInitialSetupDone,
+                lastScheduledSource, primaryColor, textColor,
                 enableVibration, isDelayedBySleepTime
             };
             localStorage.setItem('cafeTouchSettings', JSON.stringify(settings));
@@ -1878,26 +1821,7 @@
             saveSettings();
         }
 
-        function confirmInitialSetup() {
-            const morningInput = document.getElementById('initialMorningTime');
-            const eveningInput = document.getElementById('initialEveningTime');
-            const actionInput = document.getElementById('initialActionTime');
-            const times = [];
-            if (morningInput?.value) times.push(morningInput.value);
-            if (eveningInput?.value) times.push(eveningInput.value);
-            fixedTimes = times.sort();
-            actionTimeSeconds = parseInt(actionInput?.value) || 30;
-            document.getElementById('actionTimeInput').value = actionTimeSeconds;
-            completeInitialSetup();
-            updateFixedTimesList();
-            recalculateNextNotificationTime();
-        }
 
-        function completeInitialSetup() {
-            isInitialSetupDone = true;
-            document.getElementById('initialSetupCard').style.display = 'none';
-            saveSettings(); // 次回から出ないように保存💕
-        }
 
         function showAddFixedTimeMode() {
             document.getElementById('showAddFixedTimeBtn').style.display = 'none';
@@ -2041,6 +1965,51 @@
             }
         }
 
+        function generateFutureSchedules(firstTime, firstIsDelayed, maxCount = 30) {
+            let schedules = [];
+            let currentTarget = new Date(firstTime);
+            let currentIsDelayed = firstIsDelayed;
+
+            schedules.push(currentTarget);
+
+            for (let i = 1; i < maxCount; i++) {
+                // 自動更新するか判定
+                const effectiveAutoUpdate = currentIsDelayed ? sleepTimeAutoUpdate : autoUpdateNext;
+                if (!effectiveAutoUpdate) break;
+
+                // 仮想完了時間 (通知後から操作時間が経過した時刻)
+                let simulatedCompletionTime = new Date(currentTarget.getTime() + actionTimeSeconds * 1000);
+
+                // 次回時刻を計算 (クールタイム or 固定時間)
+                let cooldownEnd = new Date(simulatedCompletionTime.getTime() + cooldownMinutes * 60 * 1000);
+                let nextFixed = getNextFixedTime(simulatedCompletionTime);
+                let nextTime = (nextFixed && nextFixed < cooldownEnd) ? nextFixed : cooldownEnd;
+
+                currentIsDelayed = false;
+
+                // おやすみタイムの適用
+                if (sleepTimeEnabled && sleepTimeStart && sleepTimeEnd && (sleepTimeStart !== sleepTimeEnd)) {
+                    const sleepResult = applySleepTime(nextTime);
+                    if (sleepResult.isInside) {
+                        if (sleepTimeNotifyOnEnd) {
+                            nextTime = sleepResult.nextDate;
+                            currentIsDelayed = true;
+                        } else {
+                            // おやすみ明け通知がOFFの場合、自動更新ループは一旦途切れる
+                            break;
+                        }
+                    }
+                }
+
+                // 早める時間（秒）を適用（ネイティブ環境でも早回し通知として機能する）
+                let scheduledTime = new Date(nextTime.getTime() - (notificationAdvanceSeconds * 1000));
+
+                schedules.push(scheduledTime);
+                currentTarget = nextTime; // 次回計算のベースは本来の時間を使う
+            }
+            return schedules;
+        }
+
         async function syncScheduleToNative(targetTime) {
             if (!window.Capacitor || !window.Capacitor.Plugins.LocalNotifications) return;
             const { LocalNotifications } = window.Capacitor.Plugins;
@@ -2054,15 +2023,17 @@
                     if (requestStatus.display !== 'granted') return;
                 }
 
-                await LocalNotifications.schedule({
-                    notifications: [{
-                        title: remindTitle,
-                        body: remindBody,
-                        id: 1,
-                        schedule: { at: targetTime, allowWhileIdle: true }
-                    }]
-                });
-                console.log('Native Sync: Scheduled at', targetTime.toISOString());
+                // 最大30件先まで未来のスケジュールを予約する
+                const futureTimes = generateFutureSchedules(targetTime, isDelayedBySleepTime, 30);
+                const notifications = futureTimes.map((t, index) => ({
+                    title: remindTitle,
+                    body: remindBody,
+                    id: index + 1, // IDは1から連番で登録
+                    schedule: { at: t, allowWhileIdle: true }
+                }));
+
+                await LocalNotifications.schedule({ notifications });
+                console.log(`Native Sync: Scheduled ${notifications.length} notifications starting at ${targetTime.toISOString()}`);
             } catch (err) {
                 console.error("Native Sync Error:", err);
             }
@@ -2227,12 +2198,21 @@
             // 1. 通知の発信判定
             if (timeSinceScheduled >= 0) {
                 if (!lastNotifiedTime || lastNotifiedTime.getTime() !== nextNotificationTime.getTime()) {
-                    // 遅延判定（自動登録を止める閾値）: PCは60秒、モバイルは300秒(Androidのスリープ考慮)
-                    const delayThreshold = isMobile ? 300000 : 60000;
-                    isDelayedNotification = (timeSinceScheduled > delayThreshold);
+                    // おやすみ明けの場合はおやすみ専用の自動更新設定を参照する
+                    const effectiveAutoUpdateCheck = isDelayedBySleepTime ? sleepTimeAutoUpdate : autoUpdateNext;
 
-                    // モバイルでは Worker が Push 通知を送るためローカル通知は出さないが、Capacitorの場合は直接表示する
-                    if (!isMobile || window.isNativePlatform) {
+                    if (isMobile && effectiveAutoUpdateCheck) {
+                        // モバイル環境で自動更新ONの場合、OSやWorkerがバックグラウンドで通知ループを行っているため
+                        // JS凍結復帰時も遅延扱い(タイマーストップ)にせず、現在時刻まで状態を追いつかせる
+                        isDelayedNotification = false;
+                    } else {
+                        // PC環境や自動更新OFFの場合は、通知を確認できなかったものとして遅延ストップさせる
+                        const delayThreshold = isMobile ? 300000 : 60000;
+                        isDelayedNotification = (timeSinceScheduled > delayThreshold);
+                    }
+
+                    // PC環境のみJSから直接Web通知を出す。モバイル(PWA/Native)はWorkerやOSが既に通知済みのため二重発火を防止する
+                    if (!isMobile) {
                         showNotification(remindTitle, remindBody, 'remind');
                     }
                     lastNotifiedTime = nextNotificationTime;
@@ -2330,7 +2310,7 @@
         // 動的なタイトル更新
         function updateDynamicTitle() {
             const baseTitle = "カフェタッチリマインダー";
-            if (!showTitleTimer || !isInitialSetupDone || !nextNotificationTime) {
+            if (!showTitleTimer || !nextNotificationTime) {
                 if (document.title !== baseTitle) document.title = baseTitle;
                 return;
             }
