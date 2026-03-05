@@ -1046,15 +1046,6 @@
                             </svg>
                             テスト通知を送る
                         </button>
-                        <!-- Android Native 限定: 手動アップデート確認 -->
-                        <div id="manualAppUpdateWrapper"
-                            style="display: none; width: 100%; justify-content: center; margin-top: 8px;">
-                            <button class="btn btn-secondary"
-                                style="width: auto; padding: 10px 24px; margin-bottom: 0; display: flex; align-items: center; gap: 8px;"
-                                onclick="manualCheckNativeAppUpdate()">
-                                🔄 アプリのアップデートを確認
-                            </button>
-                        </div>
                     </div>
                 </div>
 
@@ -1296,7 +1287,15 @@
                         </p>
                     </div>
                 </div>
-
+                <!-- Android Native 限定: 手動アップデート確認 -->
+                <div id="manualAppUpdateWrapper"
+                    style="display: none; width: 100%; justify-content: center; margin-top: 8px;">
+                    <button class="btn btn-secondary"
+                        style="width: auto; padding: 10px 24px; margin-bottom: 0; display: flex; align-items: center; gap: 8px;"
+                        onclick="manualCheckNativeAppUpdate()">
+                        🔄 アプリのアップデートを確認
+                    </button>
+                </div>
                 <div
                     style="margin-top: 32px; border-top: 1px solid var(--color-border); padding-top: 16px; text-align: center;">
                     <button class="btn-text" style="color: #c0152f; font-size: 13px;" onclick="resetApp()">⚠️
