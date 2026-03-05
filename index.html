@@ -1479,13 +1479,15 @@
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
         const isAndroid = /Android/i.test(navigator.userAgent);
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-        const isNativeOS = !!window.Capacitor?.isNativePlatform();
 
-        // Capacitor Plugins
-        const LocalNotifications = window.Capacitor?.Plugins?.LocalNotifications;
-        const App = window.Capacitor?.Plugins?.App;
-        const Dialog = window.Capacitor?.Plugins?.Dialog;
-        const Browser = window.Capacitor?.Plugins?.Browser;
+        // 関数化して呼び出し時に最新状態を取得するように変更
+        const isNativeOS = () => !!window.Capacitor?.isNativePlatform();
+
+        // Capacitor Plugins の取得も動的に行う
+        const getLocalNotifications = () => window.Capacitor?.Plugins?.LocalNotifications;
+        const getApp = () => window.Capacitor?.Plugins?.App;
+        const getDialog = () => window.Capacitor?.Plugins?.Dialog;
+        const getBrowser = () => window.Capacitor?.Plugins?.Browser;
 
         // Edge判定: PC版は Edg/、Android版は EdgA/ を使うのでスラッシュなしで両方キャッチ
         const isEdge = /Edg/i.test(navigator.userAgent);
@@ -1523,7 +1525,7 @@
         });
 
         // iOS/iPadOS向け: インストールボタンが使えないので共有経由の手順を案内
-        if (isIOS && !isStandalone && !isNativeOS) {
+        if (isIOS && !isStandalone && !isNativeOS()) {
             const iosGuide = document.getElementById('iosInstallGuide');
             if (iosGuide) iosGuide.style.display = 'block';
         }
@@ -1547,7 +1549,7 @@
             let htmlDesc = "";
 
             if (isIOS) {
-                if (isStandalone || isNativeOS) {
+                if (isStandalone || isNativeOS()) {
                     // 基本的にiOSのNativeOSビルドは非推奨だがCapacitor化の可能性を考慮しPWA同等に
                     envName = "iOS / iPadOS PWA";
                     htmlDesc = `
@@ -1564,7 +1566,7 @@
                         </div>`;
                 }
             } else if (isAndroid) {
-                if (isNativeOS) {
+                if (isNativeOS()) {
                     envName = "Android 野良アプリ版 (APK)";
                     htmlDesc = `
                         <div style="padding-top: 8px;">
@@ -1772,7 +1774,7 @@
             updateEnvironmentGuide();
 
             // ネイティブアプリ特有のアップデート通知処理
-            if (isNativeOS) {
+            if (isNativeOS()) {
                 checkNativeAppUpdate();
             }
 
@@ -1891,6 +1893,9 @@
         }
 
         async function checkNativeAppUpdate() {
+            const App = getApp();
+            const Dialog = getDialog();
+            const Browser = getBrowser();
             if (!App || !Dialog || !Browser) return;
 
             try {
@@ -2225,9 +2230,12 @@
             }
         }
 
+        // LocalNotifications は動的に取得する
         async function cancelNativeNotifications() {
-            if (!window.Capacitor || !window.Capacitor.Plugins.LocalNotifications) return;
-            const { LocalNotifications } = window.Capacitor.Plugins;
+            if (!window.isNativePlatform) return;
+            const LocalNotifications = getLocalNotifications();
+            if (!LocalNotifications) return;
+
             try {
                 const pending = await LocalNotifications.getPending();
                 if (pending.notifications.length > 0) {
@@ -2782,14 +2790,16 @@
 
             // ネイティブアプリの場合は Capacitor プラグインで直接送信
             if (window.isNativePlatform) {
-                const { LocalNotifications } = window.Capacitor.Plugins;
-                await LocalNotifications.schedule({
-                    notifications: [{
-                        title: remindTitle,
-                        body: remindBody + " (Native Test)",
-                        id: 99 // テスト用ID
-                    }]
-                });
+                const LocalNotifications = getLocalNotifications();
+                if (LocalNotifications) {
+                    await LocalNotifications.schedule({
+                        notifications: [{
+                            title: remindTitle,
+                            body: remindBody + " (Native Test)",
+                            id: 99 // テスト用ID
+                        }]
+                    });
+                }
                 return;
             }
 
