@@ -1046,6 +1046,15 @@
                             </svg>
                             テスト通知を送る
                         </button>
+                        <!-- Android Native 限定: 手動アップデート確認 -->
+                        <div id="manualAppUpdateWrapper"
+                            style="display: none; width: 100%; justify-content: center; margin-top: 8px;">
+                            <button class="btn btn-secondary"
+                                style="width: auto; padding: 10px 24px; margin-bottom: 0; display: flex; align-items: center; gap: 8px;"
+                                onclick="manualCheckNativeAppUpdate()">
+                                🔄 アプリのアップデートを確認
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1602,6 +1611,15 @@
                 topDescContent.innerHTML = `PCブラウザでは「ローカル」で動作します。Androidでは野良アプリ版、iOSではPWA版を推奨します。<br>
                  <span style="color:var(--color-teal-600); font-weight:bold;">現在の環境：${envName}</span>`;
             }
+
+            const manualUpdateWrapper = document.getElementById('manualAppUpdateWrapper');
+            if (manualUpdateWrapper) {
+                if (isNativeOS()) {
+                    manualUpdateWrapper.style.display = 'flex';
+                } else {
+                    manualUpdateWrapper.style.display = 'none';
+                }
+            }
         }
 
         let retroactiveBaseTime = null;
@@ -1940,6 +1958,60 @@
 
             } catch (err) {
                 console.error("Failed to check for updates:", err);
+            }
+        }
+
+        async function manualCheckNativeAppUpdate() {
+            const App = getApp();
+            const Dialog = getDialog();
+            const Browser = getBrowser();
+            if (!App || !Dialog || !Browser) {
+                alert("ネイティブアプリの機能が初期化されていません。");
+                return;
+            }
+
+            try {
+                const info = await App.getInfo();
+                const currentVersion = info.version;
+
+                const response = await fetch('https://api.github.com/repos/sengakoji/cafetouch-reminder/releases/latest');
+                if (!response.ok) {
+                    await Dialog.alert({ title: 'エラー', message: 'アップデート情報の取得に失敗しました。' });
+                    return;
+                }
+
+                const data = await response.json();
+                let latestTag = data.tag_name;
+                if (!latestTag) {
+                    await Dialog.alert({ title: 'エラー', message: '最新のリリース情報が見つかりませんでした。' });
+                    return;
+                }
+
+                let cleanTag = latestTag;
+                if (cleanTag.toLowerCase().startsWith('v')) {
+                    cleanTag = cleanTag.substring(1);
+                }
+
+                if (compareVersions(cleanTag, currentVersion) > 0) {
+                    const { value } = await Dialog.confirm({
+                        title: 'アップデートのお知らせ',
+                        message: `新しいバージョン (v${cleanTag}) が利用可能です。\n現在のバージョン: v${currentVersion}\n\nダウンロードページを開きますか？`,
+                        okButtonTitle: 'はい',
+                        cancelButtonTitle: 'いいえ'
+                    });
+
+                    if (value) {
+                        await Browser.open({ url: data.html_url || 'https://github.com/sengakoji/cafetouch-reminder/releases' });
+                    }
+                } else {
+                    await Dialog.alert({
+                        title: '確認',
+                        message: `現在のバージョン (v${currentVersion}) は最新です。\n\n最新リリース: ${latestTag}`
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to manual check for updates:", err);
+                alert("エラーが発生しました: " + err.message);
             }
         }
 
