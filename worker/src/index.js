@@ -267,7 +267,9 @@ async function sendPushNotification(subscription, payloadText, vapidPublicKey, v
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Push service returned ${response.status}: ${errorText}`);
+    const error = new Error(`Push service returned ${response.status}: ${errorText}`);
+    error.statusCode = response.status;
+    throw error;
   }
 
   return response;
@@ -340,7 +342,7 @@ export default {
 
         // 重複実行防止のため、スケジュールの「バージョン（タイムスタンプ）」を発行・記録し、停止フラグも一緒に更新
         const scheduleId = Date.now().toString();
-        await env.PUSH_STATUS.put(`state_${subId}`, JSON.stringify({ isStopped: false, activeScheduleId: scheduleId }), { expirationTtl: 86400 * 7 }); // 7日間維持
+        await env.PUSH_STATUS.put(`state_${subId}`, JSON.stringify({ isStopped: false, activeScheduleId: scheduleId }), { expirationTtl: 86400 * 30 }); // 30日間維持
 
         await env.PUSH_QUEUE.send(
           { subscription, payload, autoUpdate, cooldownMinutes, actionTimeSeconds, fixedTimes, scheduleId },
@@ -501,7 +503,7 @@ export default {
 
           // 新しいスケジュールIDを生成して更新（これ以降、既存の別スレッドのQueueはすべて破棄される）
           const nextScheduleId = Date.now().toString();
-          await env.PUSH_STATUS.put(`state_${subId}`, JSON.stringify({ isStopped: false, activeScheduleId: nextScheduleId }), { expirationTtl: 86400 * 7 });
+          await env.PUSH_STATUS.put(`state_${subId}`, JSON.stringify({ isStopped: false, activeScheduleId: nextScheduleId }), { expirationTtl: 86400 * 30 });
 
           await env.PUSH_QUEUE.send(
             {
@@ -524,7 +526,18 @@ export default {
         message.ack();
       } catch (error) {
         console.error("Queue push failed:", error.stack || error.message);
-        if (message.attempts < 3) {
+
+        // Subscriptionが失効(410 Gone / 404)している場合はリトライせず終了
+        if (error.statusCode === 410 || error.statusCode === 404) {
+          console.log(`[Queue] Subscription expired (${error.statusCode}). Stopping chain for ${message.body?.subscription?.endpoint || 'unknown'}.`);
+          try {
+            const subId = await getSubscriptionId(message.body.subscription);
+            await env.PUSH_STATUS.put(`state_${subId}`, JSON.stringify({ isStopped: true, activeScheduleId: null, reason: 'subscription_expired' }), { expirationTtl: 86400 * 30 });
+          } catch (kvErr) {
+            console.error('Failed to update KV on subscription expiry:', kvErr);
+          }
+          message.ack();
+        } else if (message.attempts < 3) {
           message.retry();
         } else {
           message.ack();

@@ -1580,6 +1580,12 @@
                         <div style="padding-top: 8px;">
                             <strong>🤖 [${envName} をご利用の方]</strong><br>
                             1度テスト通知を送ってからデバイス側の「設定」アプリ ＞ 「アプリ」 ＞ 当アプリ ＞ 「通知」 ＞ 「その他」からポップアップやバイブレーションを任意で変更してください。<br>通知が許可されていない場合も同様に変更してください。
+                            <div style="margin-top: 8px; padding: 8px 12px; background: rgba(var(--color-teal-500-rgb), 0.08); border-radius: 6px; font-size: 13px;">
+                                <strong>⚡ バッテリー最適化の除外（重要）</strong><br>
+                                通知が不安定な場合は、以下の設定を確認してください：<br>
+                                [設定] ＞ [アプリ] ＞ [カフェタッチリマインダー] ＞ [バッテリー] ＞ 「制限なし」に変更<br>
+                                <span style="color: var(--color-text-secondary);">※端末のメーカーにより設定パスが異なる場合があります</span>
+                            </div>
                         </div>`;
                 } else {
                     envName = "Android ブラウザ / PWA";
@@ -1793,6 +1799,19 @@
             // ネイティブアプリ特有のアップデート通知処理
             if (isNativeOS()) {
                 checkNativeAppUpdate();
+
+                // 通知タップ時に自動で次のスケジュールを再予約する（原因⑧対策）
+                const LocalNotifications = getLocalNotifications();
+                if (LocalNotifications) {
+                    LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
+                        console.log('Native notification tapped, rescheduling...', notification);
+                        // タップされたIDがスケジュール通知(1~200)の場合のみ再スケジュール
+                        const id = notification?.notification?.id;
+                        if (typeof id === 'number' && id >= 1 && id <= 200) {
+                            recalculateNextNotificationTime();
+                        }
+                    });
+                }
             }
 
             if (nextNotificationTime && nextNotificationTime < new Date()) {
@@ -2227,7 +2246,7 @@
             }
         }
 
-        function generateFutureSchedules(firstTime, firstIsDelayed, maxCount = 30) {
+        function generateFutureSchedules(firstTime, firstIsDelayed, maxCount = 200) {
             let schedules = [];
             let currentTarget = new Date(firstTime);
             let currentIsDelayed = firstIsDelayed;
@@ -2285,17 +2304,17 @@
                     if (requestStatus.display !== 'granted') return;
                 }
 
-                // 最大30件先まで未来のスケジュールを予約する
-                const futureTimes = generateFutureSchedules(targetTime, isDelayedBySleepTime, 30);
+                // 最大200件先まで未来のスケジュールを予約する
+                const futureTimes = generateFutureSchedules(targetTime, isDelayedBySleepTime, 200);
                 const notifications = futureTimes.map((t, index) => ({
                     title: remindTitle,
                     body: remindBody,
                     id: index + 1, // IDは1から連番で登録
-                    schedule: { at: t, allowWhileIdle: true }
+                    schedule: { at: t, allowWhileIdle: true, exact: true }
                 }));
 
                 await LocalNotifications.schedule({ notifications });
-                console.log(`Native Sync: Scheduled ${notifications.length} notifications starting at ${targetTime.toISOString()}`);
+                console.log(`Native Sync: Scheduled ${notifications.length} exact notifications starting at ${targetTime.toISOString()}`);
             } catch (err) {
                 console.error("Native Sync Error:", err);
             }
@@ -2310,8 +2329,8 @@
             try {
                 const pending = await LocalNotifications.getPending();
                 if (pending.notifications.length > 0) {
-                    // 自動生成された未来スケジュール(ID: 1〜30)のみキャンセルし、直近の固有イベントの通知（完了時、テストなど）は消さない
-                    const toCancel = pending.notifications.filter(n => typeof n.id === 'number' && n.id >= 1 && n.id <= 30);
+                    // 自動生成された未来スケジュール(ID: 1〜200)のみキャンセルし、直近の固有イベントの通知（完了時、テストなど）は消さない
+                    const toCancel = pending.notifications.filter(n => typeof n.id === 'number' && n.id >= 1 && n.id <= 200);
                     if (toCancel.length > 0) {
                         await LocalNotifications.cancel({ notifications: toCancel });
                     }
@@ -3133,18 +3152,43 @@
                     console.log('Service Worker Registered');
                     updateNotificationStatus();
 
-                    // 通知が許可済みかつPush購読が未登録なら、自動でPush購読を行う
-                    if (Notification.permission === 'granted' && !localStorage.getItem('pushSubscription')) {
+                    // 通知が許可済みならPush購読を検証・更新する（原因⑥対策）
+                    if (Notification.permission === 'granted') {
                         if (reg.pushManager) {
                             try {
-                                const subscription = await reg.pushManager.subscribe({
-                                    userVisibleOnly: true,
-                                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-                                });
-                                localStorage.setItem('pushSubscription', JSON.stringify(subscription));
-                                console.log('Push subscription auto-registered:', subscription.endpoint);
+                                const currentSub = await reg.pushManager.getSubscription();
+                                const storedSubStr = localStorage.getItem('pushSubscription');
+
+                                if (currentSub) {
+                                    const currentSubStr = JSON.stringify(currentSub);
+                                    if (storedSubStr !== currentSubStr) {
+                                        // Subscriptionが変更された（または新規）→ localStorageを更新
+                                        localStorage.setItem('pushSubscription', currentSubStr);
+                                        console.log('Push subscription updated:', currentSub.endpoint);
+                                    }
+                                } else if (!storedSubStr) {
+                                    // 購読なし & ストレージもなし → 新規購読
+                                    const newSub = await reg.pushManager.subscribe({
+                                        userVisibleOnly: true,
+                                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                                    });
+                                    localStorage.setItem('pushSubscription', JSON.stringify(newSub));
+                                    console.log('Push subscription auto-registered:', newSub.endpoint);
+                                } else {
+                                    // ブラウザの購読がないがストレージにはある → 再購読を試行
+                                    try {
+                                        const resubscribed = await reg.pushManager.subscribe({
+                                            userVisibleOnly: true,
+                                            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                                        });
+                                        localStorage.setItem('pushSubscription', JSON.stringify(resubscribed));
+                                        console.log('Push subscription re-registered:', resubscribed.endpoint);
+                                    } catch (resubErr) {
+                                        console.error('Push re-subscribe failed:', resubErr);
+                                    }
+                                }
                             } catch (pushErr) {
-                                console.error('Auto Push Subscribe Error:', pushErr);
+                                console.error('Push Subscription Check Error:', pushErr);
                             }
                         }
                     }
