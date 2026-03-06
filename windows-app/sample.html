@@ -21,18 +21,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 
     <!-- Capacitor Core & Plugins (Nativeアプリ環境用) -->
-    <script src="cap-bundle.js"></script>
-    <script>
-        window.isNativePlatform = false;
-        // 本ファイルは Web/PWA でも使用するため、Capacitor オブジェクトの存在を安全に確認する   
-        document.addEventListener('DOMContentLoaded', () => {
-            if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
-                window.isNativePlatform = true;
-                console.log("Running in Capacitor Native Environment");
-            }
-        });
-    </script>
-    <script>
+        <script>
         // 即座に色とテーマを適用 & 通知状態をチェック（チラつき防止）
         (function () {
             const saved = localStorage.getItem('cafeTouchSettings');
@@ -814,10 +803,6 @@
         </symbol>
     </svg>
 
-    <div id="sw-update-banner" onclick="location.reload(true)">
-        ✨ 最新版が利用可能です。こちらをタップして更新 🔄
-    </div>
-
     <div class="container">
         <h1>☕ カフェタッチリマインダー</h1>
 
@@ -1486,7 +1471,7 @@
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
         const isAndroid = /Android/i.test(navigator.userAgent);
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        const isStandalone = false;
 
         // 関数化して呼び出し時に最新状態を取得するように変更
         const isNativeOS = () => !!window.Capacitor?.isNativePlatform();
@@ -2642,235 +2627,7 @@
                     }
 
                     let reg = null;
-                    if ('serviceWorker' in navigator) {
-                        reg = await navigator.serviceWorker.register('sw.js');
-                    }
-
-                    // Push Managerの購読処理（モバイル・PC問わず一度しておく）
-                    if (reg && reg.pushManager) {
-                        try {
-                            const subscription = await reg.pushManager.subscribe({
-                                userVisibleOnly: true,
-                                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-                            });
-                            localStorage.setItem('pushSubscription', JSON.stringify(subscription));
-                        } catch (pushErr) {
-                            console.error('Push Manager Subscribe Error:', pushErr);
-                        }
-                    }
-
-                    showNotification('通知が有効になりました！', 'これからカフェタッチの時間をお知らせします♪');
-                } else if (permission === 'denied') {
-                    alert('通知がブロックされています。アプリまたはブラウザの設定から通知を許可してください。');
-                }
-            } catch (err) {
-                console.error('Notification error:', err);
-            }
-        }
-
-        function toggleMute() {
-            muteNotifications = !muteNotifications;
-            updateMuteUI();
-            saveSettings();
-        }
-
-        function updateMuteUI() {
-            const btn = document.getElementById('muteBtn');
-            const iconOn = document.getElementById('bellIconOn');
-            const iconOff = document.getElementById('bellIconOff');
-
-            if (muteNotifications) {
-                btn.classList.add('muted');
-                btn.classList.remove('hover-pause');
-                iconOn.style.display = 'none';
-                iconOff.style.display = 'block';
-                btn.title = '通知を再開';
-                btn.style.color = '#e34a45'; // ミュート時は赤色に固定
-            } else {
-                btn.classList.remove('muted');
-                btn.classList.add('hover-pause');
-                iconOn.style.display = 'block';
-                iconOff.style.display = 'none';
-                btn.title = '通知を一時停止';
-                btn.style.color = primaryColor; // 通常時はテーマカラーに戻す
-            }
-        }
-
-        function toggleRetroactiveMode() {
-            const panel = document.getElementById('retroactivePanel');
-            const btn = document.getElementById('retroactiveModeBtn');
-            const slider = document.getElementById('retroactiveSlider');
-            const rangeLabel = document.getElementById('retroactiveRangeLabel');
-            const isHidden = panel.style.display === 'none' || panel.style.display === '';
-
-            if (isHidden) {
-                panel.style.display = 'block';
-                btn.style.display = 'none';
-                retroactiveBaseTime = new Date();
-                const now = retroactiveBaseTime;
-                const lastReset = getPreviousFixedTime(now);
-                let minMinutes = cooldownMinutes;
-
-                let h_label = Math.floor(minMinutes / 60);
-                let m_label = minMinutes % 60;
-                let labelText = "";
-                if (h_label > 0) labelText += h_label + "時間";
-                if (m_label > 0) labelText += m_label + "分";
-                let resetInfo = `(過去${labelText}以内)`;
-
-                if (lastReset) {
-                    const diffToReset = Math.floor((now - lastReset) / 60000);
-                    if (diffToReset < cooldownMinutes) {
-                        minMinutes = diffToReset;
-                        resetInfo = `（${formatTime(lastReset).substring(0, 5)}のリセット以降）`;
-                    }
-                }
-
-                slider.min = -minMinutes;
-
-                const currentH = Math.floor(minMinutes / 60);
-                const currentM = minMinutes % 60;
-                let currentLabel = "";
-                if (currentH > 0) currentLabel += currentH + "時間";
-                if (currentM > 0) currentLabel += currentM + "分";
-                document.getElementById('retroactiveSliderLabelMin').textContent = currentLabel + "前";
-
-                rangeLabel.textContent = `前回タッチした時刻を設定してください ${resetInfo}`;
-                const h = String(now.getHours()).padStart(2, '0');
-                const m = String(now.getMinutes()).padStart(2, '0');
-                document.getElementById('retroactiveTimeInput').value = `${h}:${m}`;
-                slider.value = 0;
-            } else {
-                panel.style.display = 'none';
-                btn.style.display = 'block';
-                retroactiveBaseTime = null;
-            }
-        }
-
-        function syncTimeFromSlider() {
-            const slider = document.getElementById('retroactiveSlider');
-            const timeInput = document.getElementById('retroactiveTimeInput');
-            const minutesAgo = parseInt(slider.value);
-            const base = retroactiveBaseTime || new Date();
-            const targetTime = new Date(base.getTime() + minutesAgo * 60 * 1000);
-            const h = String(targetTime.getHours()).padStart(2, '0');
-            const m = String(targetTime.getMinutes()).padStart(2, '0');
-            timeInput.value = `${h}:${m}`;
-        }
-
-        function syncSliderFromTime() {
-            const slider = document.getElementById('retroactiveSlider');
-            const timeInput = document.getElementById('retroactiveTimeInput');
-            const base = retroactiveBaseTime || new Date();
-            const [h, m] = timeInput.value.split(':').map(Number);
-            let targetTime = new Date(base);
-            targetTime.setHours(h, m, 0, 0);
-            if (targetTime > base) targetTime.setDate(targetTime.getDate() - 1);
-            const diffMs = targetTime - base;
-            const diffMinutes = Math.round(diffMs / 60000);
-            const min = parseInt(slider.min);
-            const max = parseInt(slider.max);
-            if (diffMinutes < min) {
-                slider.value = min;
-                syncTimeFromSlider();
-            } else if (diffMinutes > max) {
-                slider.value = max;
-                syncTimeFromSlider();
-            } else {
-                slider.value = diffMinutes;
-            }
-        }
-
-        function confirmRetroactive() {
-            const timeInput = document.getElementById('retroactiveTimeInput');
-            const slider = document.getElementById('retroactiveSlider');
-            const base = retroactiveBaseTime || new Date();
-            const [h, m] = timeInput.value.split(':').map(Number);
-            let completedTime = new Date(base);
-            completedTime.setHours(h, m, 0, 0);
-            if (completedTime > base) completedTime.setDate(completedTime.getDate() - 1);
-            const minAllowed = parseInt(slider.min);
-            const diffMinutes = Math.round((completedTime - base) / 60000);
-            if (diffMinutes < minAllowed) {
-                completedTime = new Date(base.getTime() + minAllowed * 60 * 1000);
-            } else if (diffMinutes > 0) {
-                completedTime = base;
-            }
-            lastCompletedTime = completedTime;
-            // 遡及登録モードとして再計算（即時通知をブロック）
-            // 遡及登録時は、新しい時刻に基づいて Worker に通知スケジュールを上書き送信する
-            recalculateNextNotificationTime(true, false);
-            toggleRetroactiveMode();
-            if (notifyOnComplete) {
-                showNotification(completeTitle, `>> ${formatTime(nextNotificationTime)} (過去完了登録)`, 'complete');
-            }
-        }
-
-        async function resetApp() {
-            if (confirm("すべての設定（通知の購読やサービスワーカーを含む）を削除しますか？\n\n※ブラウザ自体の「通知許可」をリセットするには、URL横の鍵アイコンなどから手動で行う必要があります。")) {
-                // 1. プッシュ通知の購読解除を試行
-                if ('serviceWorker' in navigator) {
-                    try {
-                        const registrations = await navigator.serviceWorker.getRegistrations();
-                        for (const registration of registrations) {
-                            // プッシュ購読があれば解除
-                            const subscription = await registration.pushManager.getSubscription();
-                            if (subscription) {
-                                await subscription.unsubscribe();
-                                console.log('Push subscription removed');
-                            }
-                            // サービスワーカーの登録解除
-                            await registration.unregister();
-                            console.log('Service Worker unregistered');
-                        }
-                    } catch (e) {
-                        console.error('Reset failed during SW/Push removal:', e);
-                    }
-                }
-
-                // 2. localStorageの削除
-                localStorage.clear();
-
-                // 3. リロードして初期状態へ
-                alert("すべてのデータを削除しました。\n通知権限を完全に戻したい場合は、ブラウザの設定から手動でリセットしてください。");
-                location.reload();
-            }
-        }
-
-        function updateNotificationStatus() {
-            // ネイティブ環境ではAPI有無に関わらず、設定画面等で「有効」と見なすか、少なくとも「非対応」表示は避ける
-            const granted = window.isNativePlatform || (("Notification" in window) && (Notification.permission === 'granted'));
-            document.documentElement.style.setProperty('--notification-request-display', granted ? 'none' : 'block');
-            const statusInSettings = document.getElementById('notificationStatusInSettings');
-            if (statusInSettings) {
-                let statusText = granted ? '✓ 通知が有効になっています' : '通知が無効です';
-                if (granted && window.isNativePlatform) {
-                    statusText = '✓ アプリの通知設定が有効です';
-                } else if (granted && isStandalone) {
-                    statusText = '✓ このPWAで通知が有効です';
-                }
-                statusInSettings.textContent = statusText;
-                statusInSettings.style.color = (granted || window.isNativePlatform) ? '' : 'var(--color-slate-500)';
-            }
-        }
-
-        async function sendTestNotification() {
-            if (!window.isNativePlatform && (!("Notification" in window) || Notification.permission !== 'granted')) {
-                return alert('先に通知を許可してください');
-            }
-
-            // ネイティブアプリの場合は Capacitor プラグインで直接送信
-            if (window.isNativePlatform) {
-                const LocalNotifications = getLocalNotifications();
-                if (LocalNotifications) {
-                    await LocalNotifications.schedule({
-                        notifications: [{
-                            title: remindTitle,
-                            body: remindBody + " (Native Test)",
-                            id: 99 // テスト用ID
-                        }]
-                    });
-                }
+                    
                 return;
             }
 

@@ -31,3 +31,11 @@ Thumbs.db
 .gemini/
 
 cap-bundle.js
+
+# Electron / Windows App builds
+windows-app/UserData/
+windows-app/win-unpacked/
+windows-app/builder-*.y*ml
+windows-app/*.exe
+windows-app/*.zip
+windows-app/*.blockmap

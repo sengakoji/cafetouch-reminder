@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カフェタッチリマインダー</title>
+    <!-- Google Fonts: Roboto の読み込み -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        // 即座に色とテーマを適用（チラつき防止）
+        (function () {
+            const saved = localStorage.getItem('cafeTouchSettings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                const color = settings.primaryColor || '#06BBFA';
+                const textColor = settings.textColor || 'white';
+                document.documentElement.style.setProperty('--initial-color', color);
+                document.documentElement.style.setProperty('--initial-text-color', textColor);
+
+                if (settings.themeMode === 'dark') {
+                    document.documentElement.classList.add('theme-dark');
+                } else if (settings.themeMode === 'light') {
+                    document.documentElement.classList.add('theme-light');
+                }
+            } else {
+                document.documentElement.style.setProperty('--initial-color', '#06BBFA');
+                document.documentElement.style.setProperty('--initial-text-color', 'white');
+            }
+        })();
+    </script>
+</head>
+
+<body>
+    <!-- カスタムタイトルバー -->
+    <div id="custom-titlebar"
+        style="-webkit-app-region: drag; height: 32px; display: flex; align-items: center; padding-left: 10px; background: var(--initial-color, #06BBFA); color: var(--initial-text-color, white); position: sticky; top: 0; z-index: 1000;">
+        <img src="favicon.svg" alt="icon"
+            style="width: 16px; height: 16px; margin-right: 8px; -webkit-app-region: no-drag;">
+        <span id="titlebar-text"
+            style="font-size: 12px; font-weight: 500; font-family: 'Segoe UI', system-ui, sans-serif;">カフェタッチリマインダー</span>
+    </div>
+
+    <svg style="display: none;">
+        <symbol id="icon-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </symbol>
+    </svg>
+
+    <div id="content-area">
+        <div class="container" style="padding-top: 10px;">
+            <h1 style="display: none;">カフェタッチリマインダー</h1>
+
+            <div class="card">
+                <div class="status">
+                    <div class="timer-container">
+                        <!-- リセットボタン (タイマー左隣) -->
+                        <button id="resetTimerBtn" class="control-btn reset-btn hover-warning" onclick="resetTimer()"
+                            title="タイマーを解除して固定時間を待つ">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="15" y1="9" x2="9" y2="15"></line>
+                                <line x1="9" y1="9" x2="15" y2="15"></line>
+                            </svg>
+                        </button>
+
+                        <!-- メインタイマー -->
+                        <div class="timer" id="timer">00:00:00</div>
+
+                        <!-- ベルボタン (右隣) -->
+                        <button id="muteBtn" class="control-btn mute-btn hover-pause" onclick="toggleMute()"
+                            title="通知を一時停止/再開">
+                            <svg id="bellIconOn" width="28" height="28" fill="currentColor" fill-opacity="0.15">
+                                <use href="#icon-bell"></use>
+                            </svg>
+                            <svg id="bellIconOff" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                style="display: none;">
+                                <path d="M10.3 4.5A6 6 0 0 1 18 8c0 2.22.63 4.14 1.3 5.4" stroke-opacity="0.5"></path>
+                                <path d="M11.8 3.5a6 6 0 0 0-5.8 4.5c0 2.5-.5 4.8-1.3 6" stroke-opacity="0.5"></path>
+                                <path d="M3 17h16" stroke-opacity="0.5"></path>
+                                <path d="M10.3 21a2 2 0 0 0 3.4 0" stroke-opacity="0.5"></path>
+                                <line x1="2" y1="2" x2="22" y2="22" stroke="#e34a45" stroke-width="2.5"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- ステータス表示ライン -->
+                    <div class="next-time" id="nextTime">
+                        <span class="info-part info-left" id="lastTouchDisplay">前回 00:00:00</span>
+                        <span class="info-center" id="statusDisplay"></span>
+                        <span class="info-part info-right" id="nextTouchDisplay">次回 00:00:00</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="completedBtn" onclick="markCompleted()">
+                    ✓ カフェタッチ完了
+                    <div id="autoUpdateBar" class="auto-update-bar"></div>
+                </button>
+                <button id="retroactiveModeBtn" class="btn btn-secondary"
+                    onclick="toggleRetroactiveMode()">タッチした時刻を入力</button>
+
+                <!-- 遡って完了登録機能パネル -->
+                <div id="retroactivePanel" class="retroactive-panel">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: center;">
+                            <input type="time" id="retroactiveTimeInput" onchange="syncSliderFromTime()"
+                                style="font-size: 28px; text-align: center; width: auto; padding: 4px 16px; font-weight: 600; border-color: var(--initial-color, #06BBFA);">
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 8px;">
+                        <div
+                            style="display: flex; justify-content: space-between; font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px;">
+                            <span id="retroactiveSliderLabelMin">3時間前</span>
+                            <span>現在</span>
+                        </div>
+                        <input type="range" id="retroactiveSlider" min="-180" max="0" value="0" step="1"
+                            oninput="syncTimeFromSlider()" style="width: 100%; cursor: pointer;">
+                    </div>
+
+                    <label id="retroactiveRangeLabel"
+                        style="text-align: center; margin-bottom: 16px; font-weight: normal; opacity: 0.8;">前回タッチした時刻を設定してください</label>
+
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-secondary" style="flex: 2; padding: 12px;"
+                            onclick="toggleRetroactiveMode()">キャンセル</button>
+                        <button class="btn btn-primary" style="flex: 3; padding: 12px;"
+                            onclick="confirmRetroactive()">決定</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <input type="checkbox" id="settingsToggle" class="settings-toggle">
+                <label for="settingsToggle" class="toggle-label">⚙️ 設定を開く/閉じる</label>
+
+                <div class="settings-content">
+                    <!-- グループ1: 動作 -->
+                    <div class="setting-item">
+                        <div class="setting-row">
+                            <label for="autoUpdateNextInput"
+                                style="cursor: pointer; margin-bottom: 0;">通知から操作時間経過後に自動で次の予定をセットする</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="autoUpdateNextInput" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="help-text">オフにすると、通知後に「カフェタッチ完了」ボタンを押すまで待機します</div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 8px 0;">
+
+                    <!-- グループ2: 通知・表示 -->
+                    <div class="setting-item">
+                        <div class="setting-row">
+                            <label for="notifyOnCompleteInput"
+                                style="cursor: pointer; margin-bottom: 0;">完了時に通知を表示する</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="notifyOnCompleteInput">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="help-text">「カフェタッチ完了」ボタンを押した際にも通知でお知らせします</div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 8px 0;">
+                    <div class="setting-item">
+                        <div class="setting-row">
+                            <label for="notificationSoundInput"
+                                style="cursor: pointer; margin-bottom: 0;">通知時に音を鳴らす</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="notificationSoundInput" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="help-text">※OSの通知設定が優先されます</div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 8px 0;">
+
+                    <div class="setting-item" style="margin-top: 12px;">
+                        <div class="setting-row">
+                            <label for="requireInteractionInput"
+                                style="cursor: pointer; margin-bottom: 0;">通知を自動で消さない（クリックで完了）</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="requireInteractionInput" onchange="toggleFocusSetting()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="help-text">有効にすると、リマインド通知が画面に残り続けます。<br>通知をクリックすると「カフェタッチ完了」として処理されます。
+                        </div>
+
+                        <div id="preventFocusWrapper" style="margin-left: 24px; margin-top: 8px; margin-bottom: 8px;">
+                            <div id="preventFocusContainer" class="setting-row">
+                                <label for="preventFocusOnNotificationClickInput"
+                                    style="cursor: pointer; margin-bottom: 0;">通知クリック時にウィンドウを開かない</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="preventFocusOnNotificationClickInput">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="help-text">有効にすると、クリックしてもウィンドウを最前面に表示しません</div>
+                        </div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 8px 0;">
+
+                    <div class="setting-item" style="margin-top: 12px;">
+                        <div class="setting-row">
+                            <label for="showTitleTimerInput"
+                                style="cursor: pointer; margin-bottom: 0;">タイトルバーに残り時間を表示する</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="showTitleTimerInput" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="help-text">ウィンドウのタイトルバーやタスクバーで状況を確認できます（分単位の表示）</div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 8px 0;">
+
+                    <!-- グループ2.5: 動作設定 -->
+                    <div class="setting-item" style="margin-top: 12px;">
+                        <div class="setting-row">
+                            <label for="startMinimizedInput"
+                                style="cursor: pointer; margin-bottom: 0;">起動時にタスクトレイに格納しておく</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="startMinimizedInput">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="help-text">起動直後はウィンドウを表示せず、バックグラウンドでのみ動作を開始します</div>
+                    </div>
+
+                    <div class="setting-item" style="margin-top: 12px;">
+                        <div class="setting-row">
+                            <label for="closeToTrayInput"
+                                style="cursor: pointer; margin-bottom: 0;">ウインドウを×で閉じた時にタスクトレイに格納する</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="closeToTrayInput">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="help-text">オフの場合、×ボタンを押すとアプリが完全に終了します</div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 8px 0;">
+
+                    <!-- グループ3: メッセージ設定 -->
+                    <div style="margin-bottom: 24px;">
+                        <h3 style="font-size: 16px; margin-bottom: 16px;">💬 通知メッセージの設定</h3>
+
+                        <div class="form-group">
+                            <label>リマインド通知（時間になった時）</label>
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <input type="text" id="remindTitleInput" placeholder="タイトル (例: カフェタッチの時間です！)"
+                                    oninput="saveSettingsAuto()">
+                                <input type="text" id="remindBodyInput" placeholder="本文 (例: カフェタッチを忘れずに♪)"
+                                    oninput="saveSettingsAuto()">
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 24px;">
+                            <label>完了通知（ボタンを押した時）</label>
+                            <input type="text" id="completeTitleInput" placeholder="タイトル (例: カフェタッチ完了！)"
+                                oninput="saveSettingsAuto()">
+                            <div class="help-text">本文は「>> HH:mm:ss」形式で固定されます</div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                            <button class="btn btn-secondary"
+                                style="width: auto; padding: 10px 24px; margin-bottom: 0; display: flex; align-items: center; gap: 8px;"
+                                onclick="sendTestNotification()">
+                                <svg width="18" height="18">
+                                    <use href="#icon-bell"></use>
+                                </svg>
+                                テスト通知を送る
+                            </button>
+                        </div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+
+                    <div class="form-group">
+                        <label>テーマカラー</label>
+                        <div
+                            style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px;">
+                            <!-- 1行目：学園カラー -->
+                            <button class="color-preset" style="background: #06BBFA;"
+                                onclick="setColor('#06BBFA')"></button>
+                            <button class="color-preset" style="background: #E34A45;"
+                                onclick="setColor('#E34A45')"></button>
+                            <button class="color-preset" style="background: #4F86F7;"
+                                onclick="setColor('#4F86F7')"></button>
+                            <button class="color-preset" style="background: #FBB35A;"
+                                onclick="setColor('#FBB35A')"></button>
+                            <button class="color-preset" style="background: #E05289;"
+                                onclick="setColor('#E05289')"></button>
+
+                            <!-- 2行目 -->
+                            <button class="color-preset" style="background: #03C03C;"
+                                onclick="setColor('#03C03C')"></button>
+                            <button class="color-preset" style="background: #B23B59;"
+                                onclick="setColor('#B23B59')"></button>
+                            <button class="color-preset" style="background: #A1A9E1;"
+                                onclick="setColor('#A1A9E1')"></button>
+                            <button class="color-preset" style="background: #DBDAD8;"
+                                onclick="setColor('#DBDAD8')"></button>
+                            <button class="color-preset" style="background: #90ABC9;"
+                                onclick="setColor('#90ABC9')"></button>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                            <input type="color" id="colorPicker" value="#06BBFA"
+                                style="width: 33.3%; height: 44px; cursor: pointer;" onchange="setColor(this.value)">
+                            <span style="font-size: 20px;">🎨</span>
+                        </div>
+                        <div class="help-text">プリセットカラーを選択するか、カラーピッカーで自由に色を設定できます</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>カラーモード</label>
+                        <div class="segmented-control">
+                            <input type="radio" id="theme-system" name="themeMode" value="system"
+                                onchange="setThemeMode(this.value)">
+                            <label for="theme-system">システム</label>
+                            <input type="radio" id="theme-light" name="themeMode" value="light"
+                                onchange="setThemeMode(this.value)">
+                            <label for="theme-light">ライト</label>
+                            <input type="radio" id="theme-dark" name="themeMode" value="dark"
+                                onchange="setThemeMode(this.value)">
+                            <label for="theme-dark">ダーク</label>
+                        </div>
+                        <div class="help-text">画面の明るさを設定します。（システムを選ぶとOSの設定に従います）</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>ボタン内と一部の文字色</label>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-primary" style="flex: 1; padding: 12px; color: white;"
+                                data-fixed-color onclick="setTextColor('white')">サンプル 白</button>
+                            <button class="btn btn-primary" style="flex: 1; padding: 12px; color: black;"
+                                data-fixed-color onclick="setTextColor('black')">サンプル 黒</button>
+                        </div>
+                        <div class="help-text">ボタンと固定時間タグの文字色を設定します</div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+
+                    <div class="form-group">
+                        <label>カフェタッチのクールタイム（分）</label>
+                        <input type="number" id="cooldownInput" value="180" min="1"
+                            oninput="saveSettingsAndRecalculate()" style="width: 120px;">
+                        <div class="help-text">カフェタッチ後のクールタイム、次にタッチできるまでの時間（デフォルト: 180分 = 3時間）</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>カフェタッチにかかる時間（秒）</label>
+                        <input type="number" id="actionTimeInput" value="30" min="0"
+                            oninput="saveSettingsAndRecalculate()" style="width: 120px;">
+                        <div class="help-text">カフェタッチの操作にかかる時間（デフォルト: 30秒）<br>通知からこの時間が経過すると自動で次の予定がセットされます
+                        </div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+
+                    <input type="checkbox" id="sleepTimeToggle" class="settings-toggle sleep-time-toggle"
+                        style="display: none;">
+                    <div class="setting-item">
+                        <div id="sleepTimeEnabledOuter" class="setting-row">
+                            <label for="sleepTimeToggle" class="toggle-label"
+                                style="width: fit-content; margin-bottom: 0; padding: 10px 16px;">
+                                🌙 おやすみタイム（通知保留）
+                            </label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="sleepTimeEnabledInput"
+                                    onchange="syncSleepTimeEnabled(this.checked); saveSettingsAndRecalculate()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="help-text">指定した時間帯は通知を停止し、おやすみ明けに遅延して通知します</div>
+
+                        <div class="sleep-time-content">
+                            <div id="sleepTimeFields"
+                                style="margin-top: 16px; padding: 16px; background: var(--color-surface); border-radius: 8px; border: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 16px; transition: opacity 0.3s ease;">
+
+                                <div class="setting-row">
+                                    <label for="sleepTimeEnabledInputInner"
+                                        style="font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 0;">おやすみタイムを有効にする</label>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="sleepTimeEnabledInputInner"
+                                            onchange="syncSleepTimeEnabled(this.checked); saveSettingsAndRecalculate()">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+
+                                <div style="display: flex; gap: 12px; align-items: center;">
+                                    <div style="flex: 1;">
+                                        <label
+                                            style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px;">開始時刻</label>
+                                        <input type="time" id="sleepTimeStartInput" style="height: 44px; width: 100%;"
+                                            onchange="saveSettingsAndRecalculate()">
+                                    </div>
+                                    <span style="color: var(--color-text-secondary);">～</span>
+                                    <div style="flex: 1;">
+                                        <label
+                                            style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px;">終了時刻</label>
+                                        <input type="time" id="sleepTimeEndInput" style="height: 44px; width: 100%;"
+                                            onchange="saveSettingsAndRecalculate()">
+                                    </div>
+                                </div>
+
+                                <div
+                                    style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0px;">
+                                    <label for="sleepTimeNotifyOnEndInput"
+                                        style="font-size: 14px; cursor: pointer; margin-bottom: 0;">保留した通知を受け取る</label>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="sleepTimeNotifyOnEndInput" checked
+                                            onchange="toggleSleepTimeAutoUpdate(); saveSettingsAndRecalculate()">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+
+                                <div id="sleepTimeAutoUpdateWrapper"
+                                    style="transition: opacity 0.3s ease; margin-left: 12px; padding-left: 12px; border-left: 2px solid var(--color-border); margin-top: 4px;">
+                                    <div class="setting-row" style="margin-bottom: 0;">
+                                        <label for="sleepTimeAutoUpdateInput"
+                                            style="font-size: 14px; cursor: pointer; margin-bottom: 0;">保留した通知後に次回タイマーを開始する</label>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="sleepTimeAutoUpdateInput"
+                                                onchange="saveSettingsAndRecalculate()">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="help-text" style="margin-top: 0px; margin-bottom: 0;">
+                                        ※OFFの場合、通知確認後に手動で完了を押して次のタイマーを開始します
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 24px 0;">
+
+                    <div class="form-group">
+                        <label>固定リセット時刻（複数設定可能）</label>
+                        <div id="addFixedTimeContainer"
+                            style="display: flex; gap: 8px; align-items: center; min-height: 44px;">
+                            <!-- 初期状態: 追加ボタンのみ -->
+                            <button id="showAddFixedTimeBtn" class="btn btn-secondary"
+                                style="width: fit-content; margin-bottom: 0; padding: 10px 16px; font-size: 14px;"
+                                onclick="showAddFixedTimeMode()">
+                                <span style="font-size: 16px; font-weight: bold; margin-right: 4px;">+</span>
+                                時刻を追加
+                            </button>
+
+                            <!-- 入力モード時 (初期非表示) -->
+                            <div id="addFixedTimeInputGroup"
+                                style="display: none; align-items: center; gap: 8px; width: 100%;">
+                                <input type="time" id="fixedTimeInput" style="width: 100px; flex: none; height: 44px;">
+                                <button class="btn btn-primary"
+                                    style="width: auto; padding: 10px 20px; margin-bottom: 0;"
+                                    onclick="addFixedTime()">決定</button>
+                                <button class="btn btn-secondary"
+                                    style="width: auto; padding: 10px 12px; margin-bottom: 0;"
+                                    onclick="hideAddFixedTimeMode()">✕</button>
+                            </div>
+                        </div>
+                        <div class="time-list" id="fixedTimesList"></div>
+                        <div class="help-text">例: 4:00, 16:00 など、毎日この時刻にリセットされます</div>
+                    </div>
+
+                    <div class="card" style="background: rgba(var(--color-teal-500-rgb), 0.08); margin-top: 20px;">
+                        <h3 style="margin-top: 0;">操作説明</h3>
+                        <div style="font-size: 14px; line-height: 1.5;">
+                            <p>ブルーアーカイブのカフェタッチのタイミングを通知するリマインダーです。<br>
+                                Electronデスクトップアプリとして動作します。</p>
+
+                            <p><strong>自動更新</strong><br>
+                                通知後にカフェタッチ完了ボタンを押さずに放置すると、<br>「カフェタッチにかかる時間」+「カフェタッチのクールタイム」が<br>次回の通知タイミングに自動的に設定されます。
+                            </p>
+
+                            <p><strong>手動更新</strong><br>
+                                カフェタッチが予定時刻より遅れた場合や「カフェタッチ完了」ボタンを押した瞬間から、最短のクールタイムを計りたい場合は「カフェタッチ完了」ボタンを押してください。<br>クールタイムのみをカウントするタイマーが設定されます。
+                            </p>
+
+                            <p style="font-size: 13px; opacity: 0.8; margin-top: 12px;">
+                                操作時間やクールタイムは設定画面から変更可能です。
+                            </p>
+                        </div>
+                    </div>
+
+                    <div
+                        style="margin-top: 32px; border-top: 1px solid var(--color-border); padding-top: 16px; text-align: center;">
+                        <button class="btn-text" style="color: #c0152f; font-size: 13px;" onclick="resetApp()">⚠️
+                            すべての設定を削除する</button>
+                        <div class="help-text">設定などすべてのデータが削除されます</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-note">💡 通知を受け取るには、このアプリを起動したままにしておいてください<br>（×ボタンでトレイに最小化されます）</div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+
+</html>
