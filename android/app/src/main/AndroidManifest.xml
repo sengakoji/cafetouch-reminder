@@ -37,6 +37,10 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <!-- AlarmClock Plugin Receiver -->
+        <receiver android:name=".AlarmReceiver" android:exported="false" />
+
     </application>
 
     <!-- Permissions -->

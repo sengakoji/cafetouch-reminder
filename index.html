@@ -1485,8 +1485,9 @@
 
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-        const isAndroid = /Android/i.test(navigator.userAgent);
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        let hasPushPermission = false;
+        let pwaInstallPrompt = null;
+        let isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
         // 関数化して呼び出し時に最新状態を取得するように変更
         const isNativeOS = () => !!window.Capacitor?.isNativePlatform();
@@ -1867,7 +1868,11 @@
 
             // モバイルの場合、設定変更を即座に Worker 側のスケジュールにも反映させる(デバウンス処理)
             if (isMobile && nextNotificationTime) {
-                debouncedSyncScheduleToWorker(nextNotificationTime);
+                if (window.isNativePlatform) {
+                    syncScheduleToNative(nextNotificationTime);
+                } else {
+                    debouncedSyncScheduleToWorker(nextNotificationTime);
+                }
             }
         }
 
@@ -2246,12 +2251,12 @@
             }
         }
 
-        function generateFutureSchedules(firstTime, firstIsDelayed, maxCount = 200) {
+        function generateFutureSchedules(firstTime, firstIsDelayed, maxCount = 50) {
             let schedules = [];
             let currentTarget = new Date(firstTime);
             let currentIsDelayed = firstIsDelayed;
 
-            schedules.push(currentTarget);
+            schedules.push({ time: currentTarget, isExact: false }); // 最初の通知は exact ではないと仮定
 
             for (let i = 1; i < maxCount; i++) {
                 // 自動更新するか判定
@@ -2265,6 +2270,11 @@
                 let cooldownEnd = new Date(simulatedCompletionTime.getTime() + cooldownMinutes * 60 * 1000);
                 let nextFixed = getNextFixedTime(simulatedCompletionTime);
                 let nextTime = (nextFixed && nextFixed < cooldownEnd) ? nextFixed : cooldownEnd;
+
+                let isExactTime = false;
+                if (nextFixed && nextTime.getTime() === nextFixed.getTime()) { // nextTimeがnextFixedから来ている場合
+                    isExactTime = true;
+                }
 
                 currentIsDelayed = false;
 
@@ -2285,7 +2295,7 @@
                 // 早める時間（秒）を適用（ネイティブ環境でも早回し通知として機能する）
                 let scheduledTime = new Date(nextTime.getTime() - (notificationAdvanceSeconds * 1000));
 
-                schedules.push(scheduledTime);
+                schedules.push({ time: scheduledTime, isExact: isExactTime });
                 currentTarget = nextTime; // 次回計算のベースは本来の時間を使う
             }
             return schedules;
@@ -2293,7 +2303,7 @@
 
         async function syncScheduleToNative(targetTime) {
             if (!window.Capacitor || !window.Capacitor.Plugins.LocalNotifications) return;
-            const { LocalNotifications } = window.Capacitor.Plugins;
+            const { LocalNotifications, AlarmClock } = window.Capacitor.Plugins;
 
             await cancelNativeNotifications();
 
@@ -2304,17 +2314,47 @@
                     if (requestStatus.display !== 'granted') return;
                 }
 
-                // 最大200件先まで未来のスケジュールを予約する
-                const futureTimes = generateFutureSchedules(targetTime, isDelayedBySleepTime, 200);
-                const notifications = futureTimes.map((t, index) => ({
-                    title: remindTitle,
-                    body: remindBody,
-                    id: index + 1, // IDは1から連番で登録
-                    schedule: { at: t, allowWhileIdle: true, exact: true }
-                }));
+                // 最大50件先まで未来のスケジュールを予約する
+                const futureTimes = generateFutureSchedules(targetTime, isDelayedBySleepTime, 50);
+                const notifications = [];
 
-                await LocalNotifications.schedule({ notifications });
-                console.log(`Native Sync: Scheduled ${notifications.length} exact notifications starting at ${targetTime.toISOString()}`);
+                for (let i = 0; i < futureTimes.length; i++) {
+                    const item = futureTimes[i];
+                    const id = i + 1;
+
+                    if (item.isExact && AlarmClock) {
+                        // 9分制限を受けない特別なアラーム（setAlarmClock）として予約
+                        try {
+                            await AlarmClock.setAlarm({
+                                at: item.time.getTime(),
+                                title: remindTitle,
+                                body: remindBody
+                            });
+                        } catch (e) {
+                            console.error("AlarmClock Error:", e);
+                            // フォールバック: 通常のスケジュールとして登録
+                            notifications.push({
+                                title: remindTitle,
+                                body: remindBody,
+                                id: id,
+                                schedule: { at: item.time, allowWhileIdle: true, exact: true }
+                            });
+                        }
+                    } else {
+                        // 通常のクールタイム通知（allowWhileIdle）
+                        notifications.push({
+                            title: remindTitle,
+                            body: remindBody,
+                            id: id,
+                            schedule: { at: item.time, allowWhileIdle: true }
+                        });
+                    }
+                }
+
+                if (notifications.length > 0) {
+                    await LocalNotifications.schedule({ notifications });
+                }
+                console.log(`Native Sync: Hybrid sync complete (${notifications.length} regular)`);
             } catch (err) {
                 console.error("Native Sync Error:", err);
             }
@@ -2323,14 +2363,18 @@
         // LocalNotifications は動的に取得する
         async function cancelNativeNotifications() {
             if (!window.isNativePlatform) return;
-            const LocalNotifications = getLocalNotifications();
+            const { LocalNotifications, AlarmClock } = window.Capacitor.Plugins;
             if (!LocalNotifications) return;
+
+            if (AlarmClock) {
+                try { await AlarmClock.cancelAlarm(); } catch (e) { }
+            }
 
             try {
                 const pending = await LocalNotifications.getPending();
                 if (pending.notifications.length > 0) {
-                    // 自動生成された未来スケジュール(ID: 1〜200)のみキャンセルし、直近の固有イベントの通知（完了時、テストなど）は消さない
-                    const toCancel = pending.notifications.filter(n => typeof n.id === 'number' && n.id >= 1 && n.id <= 200);
+                    // 自動生成された未来スケジュール(ID: 1〜50)のみキャンセルし、直近の固有イベントの通知（完了時、テストなど）は消さない
+                    const toCancel = pending.notifications.filter(n => typeof n.id === 'number' && n.id >= 1 && n.id <= 50);
                     if (toCancel.length > 0) {
                         await LocalNotifications.cancel({ notifications: toCancel });
                     }
@@ -2856,10 +2900,25 @@
             }
         }
 
-        function updateNotificationStatus() {
-            // ネイティブ環境ではAPI有無に関わらず、設定画面等で「有効」と見なすか、少なくとも「非対応」表示は避ける
-            const granted = window.isNativePlatform || (("Notification" in window) && (Notification.permission === 'granted'));
+        async function updateNotificationStatus() {
+            let granted = false;
+
+            if (window.isNativePlatform) {
+                const LocalNotifications = getLocalNotifications();
+                if (LocalNotifications) {
+                    try {
+                        const permStatus = await LocalNotifications.checkPermissions();
+                        granted = (permStatus.display === 'granted');
+                    } catch (e) {
+                        console.error('Failed to check notification permissions:', e);
+                    }
+                }
+            } else {
+                granted = (("Notification" in window) && (Notification.permission === 'granted'));
+            }
+
             document.documentElement.style.setProperty('--notification-request-display', granted ? 'none' : 'block');
+
             const statusInSettings = document.getElementById('notificationStatusInSettings');
             if (statusInSettings) {
                 let statusText = granted ? '✓ 通知が有効になっています' : '通知が無効です';
@@ -2879,14 +2938,16 @@
             }
 
             // ネイティブアプリの場合は Capacitor プラグインで直接送信
+            // 直近の単発通知（テスト通知や完了時通知）は、先の9分制限やDozeの挙動に
+            // 悪影響を与えないよう、一切のオプション（exact, allowWhileIdle）を付けずにピュアに送る
             if (window.isNativePlatform) {
                 const LocalNotifications = getLocalNotifications();
                 if (LocalNotifications) {
-                    await LocalNotifications.schedule({
+                    void LocalNotifications.schedule({
                         notifications: [{
                             title: remindTitle,
                             body: remindBody + " (Native Test)",
-                            id: 99 // テスト用ID
+                            id: 99, // テスト完了用一時ID
                         }]
                     });
                 }
