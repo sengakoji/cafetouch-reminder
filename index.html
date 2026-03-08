@@ -2256,7 +2256,20 @@
             let currentTarget = new Date(firstTime);
             let currentIsDelayed = firstIsDelayed;
 
-            schedules.push({ time: currentTarget, isExact: false }); // 最初の通知は exact ではないと仮定
+            // 最初の1件目の正確性判定 (固定時刻リストに含まれているか)
+            let firstIsExact = false;
+            if (fixedTimes.length > 0) {
+                const h = String(currentTarget.getHours()).padStart(2, '0');
+                const m = String(currentTarget.getMinutes()).padStart(2, '0');
+                const timeStr = `${h}:${m}`;
+                if (fixedTimes.includes(timeStr)) {
+                    firstIsExact = true;
+                }
+            }
+
+            // 最初のアラームにも早回し(Advance)を適用した時刻で予約する
+            let firstScheduledTime = new Date(currentTarget.getTime() - (notificationAdvanceSeconds * 1000));
+            schedules.push({ time: firstScheduledTime, isExact: firstIsExact });
 
             for (let i = 1; i < maxCount; i++) {
                 // 自動更新するか判定
