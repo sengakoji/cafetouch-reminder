@@ -1266,8 +1266,8 @@
                                 <!-- JSで環境固有の案内をここに挿入 -->
                                 <li id="envGuideSettingsContent"
                                     style="list-style: none; margin-bottom: 0px; padding: 0;"></li>
-                                <li
-                                    style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--color-border);">
+                                <li id="iosDelayNotice"
+                                    style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--color-border);">
                                     <strong>クラウド通知の遅延について</strong>:<br>
                                     iOS / iPadOSではクラウド経由でPush通知を送るため、通知に遅れが生じます。
                                 </li>
@@ -1485,6 +1485,7 @@
 
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isAndroid = /Android/i.test(navigator.userAgent);
         let hasPushPermission = false;
         let pwaInstallPrompt = null;
         let isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -1545,6 +1546,11 @@
             const modalContent = document.getElementById('envGuideModalContent');
             const settingsContent = document.getElementById('envGuideSettingsContent');
             const topDescContent = document.getElementById('envGuideTopDescription');
+            const iosDelayNotice = document.getElementById('iosDelayNotice');
+
+            if (iosDelayNotice) {
+                iosDelayNotice.style.display = isIOS ? 'list-item' : 'none';
+            }
 
             if (!btn || !modalContent || !settingsContent) return;
 
@@ -1583,8 +1589,8 @@
                             1度テスト通知を送ってからデバイス側の「設定」アプリ ＞ 「アプリ」 ＞ 当アプリ ＞ 「通知」 ＞ 「その他」からポップアップやバイブレーションを任意で変更してください。<br>通知が許可されていない場合も同様に変更してください。
                             <div style="margin-top: 8px; padding: 8px 12px; background: rgba(var(--color-teal-500-rgb), 0.08); border-radius: 6px; font-size: 13px;">
                                 <strong>⚡ バッテリー最適化の除外（重要）</strong><br>
-                                通知が不安定な場合は、以下の設定を確認してください：<br>
-                                [設定] ＞ [アプリ] ＞ [カフェタッチリマインダー] ＞ [バッテリー] ＞ 「制限なし」に変更<br>
+                                通知の安定性を上げるためにバッテリー最適化を「制限なし」に設定してください。<br>
+                                設定アプリ > アプリ > 当アプリ > アプリのバッテリー使用量 > バックグラウンドでの使用の許可 > 制限なし<br>
                                 <span style="color: var(--color-text-secondary);">※端末のメーカーにより設定パスが異なる場合があります</span>
                             </div>
                         </div>`;
@@ -2456,6 +2462,10 @@
                     }
                 }
             }
+
+            // ネイティブ通知の予約もすべて破棄する
+            await cancelNativeNotifications();
+
             // タイマーを完全に停止する（次の予定をクリア）
             lastCompletedTime = null;
             nextNotificationTime = null;
@@ -2556,9 +2566,9 @@
                         isDelayedNotification = (timeSinceScheduled > delayThreshold);
                     }
 
-                    // PC環境やネイティブアプリとして開いている最中は、JS側から直接通知を出す
-                    // (PWAの場合はService Workerがすでにプッシュしているため二重発火を防止)
-                    if (!isMobile || window.isNativePlatform) {
+                    // PC環境（非モバイル・非ネイティブ）の時だけJS側から直接通知を出す
+                    // (PWAの場合はSWがプッシュし、ネイティブアプリはOS予約通知が届くため二重発火を防止)
+                    if (!isMobile && !window.isNativePlatform) {
                         showNotification(remindTitle, remindBody, 'remind');
                     }
                     lastNotifiedTime = nextNotificationTime;
