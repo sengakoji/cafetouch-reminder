@@ -3,6 +3,7 @@
 let fixedTimes = [];
 let cooldownMinutes = 180;
 let actionTimeSeconds = 30;
+let notificationAdvanceSeconds = 10;
 let sleepTimeEnabled = false;
 let sleepTimeStart = '';
 let sleepTimeEnd = '';
@@ -84,6 +85,7 @@ function loadSettings() {
         textColor = settings.textColor || 'white';
         cooldownMinutes = settings.cooldownMinutes || 180;
         actionTimeSeconds = settings.actionTimeSeconds || 30;
+        notificationAdvanceSeconds = settings.notificationAdvanceSeconds !== undefined ? settings.notificationAdvanceSeconds : 10;
         notifyOnComplete = settings.notifyOnComplete || false;
         notificationSound = settings.notificationSound !== undefined ? settings.notificationSound : true;
         requireInteraction = settings.requireInteraction !== undefined ? settings.requireInteraction : false;
@@ -119,6 +121,8 @@ function loadSettings() {
 
     document.getElementById('cooldownInput').value = cooldownMinutes;
     document.getElementById('actionTimeInput').value = actionTimeSeconds;
+    const advanceInput = document.getElementById('notificationAdvanceInput');
+    if (advanceInput) advanceInput.value = notificationAdvanceSeconds;
     document.getElementById('notifyOnCompleteInput').checked = notifyOnComplete;
     document.getElementById('notificationSoundInput').checked = notificationSound;
     document.getElementById('requireInteractionInput').checked = requireInteraction;
@@ -188,6 +192,7 @@ function loadSettings() {
 function saveSettings() {
     cooldownMinutes = parseInt(document.getElementById('cooldownInput').value) || 180;
     actionTimeSeconds = parseInt(document.getElementById('actionTimeInput').value) || 0;
+    notificationAdvanceSeconds = parseInt(document.getElementById('notificationAdvanceInput')?.value) || 0;
     notifyOnComplete = document.getElementById('notifyOnCompleteInput').checked;
     notificationSound = document.getElementById('notificationSoundInput').checked;
     requireInteraction = document.getElementById('requireInteractionInput').checked;
@@ -215,7 +220,7 @@ function saveSettings() {
     }
 
     const settings = {
-        fixedTimes, cooldownMinutes, actionTimeSeconds, notifyOnComplete, notificationSound,
+        fixedTimes, cooldownMinutes, actionTimeSeconds, notificationAdvanceSeconds, notifyOnComplete, notificationSound,
         requireInteraction, preventFocusOnNotificationClick,
         showTitleTimer, autoUpdateNext, startMinimized, closeToTray, muteNotifications, themeMode,
         sleepTimeEnabled, sleepTimeStart, sleepTimeEnd, sleepTimeNotifyOnEnd, sleepTimeAutoUpdate,
@@ -539,7 +544,7 @@ function updateTimerLogic(forceUpdate = false) {
     const actionWaitMs = actionTimeSeconds * 1000;
 
     // 1. 通知の発信判定
-    if (timeSinceScheduled >= 0) {
+    if (timeSinceScheduled >= -(notificationAdvanceSeconds * 1000)) {
         if (!lastNotifiedTime || lastNotifiedTime.getTime() !== nextNotificationTime.getTime()) {
             const delayThreshold = 60000;
             isDelayedNotification = (timeSinceScheduled > delayThreshold);
