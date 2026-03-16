@@ -702,9 +702,11 @@ function showNotification(title, body, type = 'normal') {
     const n = new Notification(title, options);
 
     n.onclick = () => {
-        // ウィンドウを前面に出す (Main プロセスの処理を呼ぶ)
-        if (window.electronAPI && window.electronAPI.focusWindow) {
-            window.electronAPI.focusWindow();
+        // 「通知クリック時にウィンドウを開かない」設定がオフの場合のみフォーカスする
+        if (!preventFocusOnNotificationClick) {
+            if (window.electronAPI && window.electronAPI.focusWindow) {
+                window.electronAPI.focusWindow();
+            }
         }
         
         // 操作完了処理 (設定がオンの場合)
