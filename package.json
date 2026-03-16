@@ -1,6 +1,6 @@
 {
   "name": "cafetouch-reminder",
-  "version": "1.0.9",
+  "version": "1.0.14",
   "description": "<img src=\"screenshot.jpg\" width=\"50%\">",
   "main": "sw.js",
   "scripts": {
