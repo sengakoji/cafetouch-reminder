@@ -365,7 +365,10 @@ function recalculateNextNotificationTime(isRetroactive = false) {
 
     if (lastCompletedTime) {
         const cooldownEnd = new Date(lastCompletedTime.getTime() + cooldownMinutes * 60 * 1000);
-        const firstResetAfterTouch = getNextFixedTime(lastCompletedTime);
+        
+        // 通知を早めにクリックした時に同じ時間が選ばれないよう、予約されていた時間も考慮する
+        const searchBase = (nextNotificationTime && lastCompletedTime < nextNotificationTime) ? nextNotificationTime : lastCompletedTime;
+        const firstResetAfterTouch = getNextFixedTime(searchBase);
 
         if (firstResetAfterTouch && firstResetAfterTouch < cooldownEnd) {
             nextNotificationTime = firstResetAfterTouch;

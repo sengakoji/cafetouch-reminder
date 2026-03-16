@@ -7,6 +7,9 @@ if (app.isPackaged) {
   app.setPath('userData', path.join(path.dirname(app.getPath('exe')), 'UserData'));
 }
 
+// Windowsの通知（アクションセンター等）との連携を確実にするため、AppUserModelIdを設定
+app.setAppUserModelId('com.cafetouch.reminder');
+
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
