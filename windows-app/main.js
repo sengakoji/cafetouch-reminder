@@ -165,45 +165,18 @@ if (!gotTheLock) {
 
 // === IPC Handlers ===
 
-let activeNotification = null;
+// 不要になった通知管理変数は削除
 
-// 通知の表示
-ipcMain.on('show-notification', (event, { title, body, silent, requireInteraction, preventFocus }) => {
-  // すでに通知が表示されている場合は閉じる（累積防止）
-  if (activeNotification) {
-    activeNotification.close();
+// 通知クリック時などにウィンドウを前面に出す処理
+ipcMain.on('focus-window', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
   }
-
-  const options = {
-    title: title,
-    body: body,
-    silent: silent || false,
-    icon: path.join(__dirname, 'favicon.png'),
-  };
-
-  // Windows等で通知を消さずに残す設定
-  if (requireInteraction) {
-    options.timeoutType = 'never';
-  }
-
-  activeNotification = new Notification(options);
-
-  activeNotification.on('click', () => {
-    event.reply('notification-clicked');
-    if (mainWindow && !preventFocus) {
-      if (!mainWindow.isVisible()) mainWindow.show();
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-    }
-  });
-
-  // 通知が閉じられたときに参照をクリア
-  activeNotification.on('close', () => {
-    activeNotification = null;
-  });
-
-  activeNotification.show();
 });
+
+// レンダラーから直接 Web Notification API を使うようになったため、show-notification ハンドラは削除
 
 // タイトルの更新
 ipcMain.on('set-title', (event, title) => {

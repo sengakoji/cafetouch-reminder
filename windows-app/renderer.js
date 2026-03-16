@@ -683,31 +683,38 @@ function formatTime(date) {
     return `${h}:${m}:${s}`;
 }
 
-// Electron通知 (メインプロセスの Notification API を使用)
+// Electron通知 (Web Notification API を使用して tag で上書き制御)
 function showNotification(title, body, type = 'normal') {
     if (muteNotifications && type !== 'test') return;
 
     const keepNotification = document.getElementById('requireInteractionInput') ? document.getElementById('requireInteractionInput').checked : false;
     const shouldRequireInteractionPC = (type === 'remind' && keepNotification);
 
-    if (window.electronAPI) {
-        window.electronAPI.showNotification(title, body, {
-            silent: !notificationSound,
-            requireInteraction: shouldRequireInteractionPC,
-            preventFocus: preventFocusOnNotificationClick
-        });
-    }
-}
+    // Web Notification API を直接使用
+    const options = {
+        body: body,
+        silent: !notificationSound,
+        tag: 'cafe-touch-notification', // 同じタグを指定することで、新しい通知が来ると古いものが上書き消去される
+        requireInteraction: shouldRequireInteractionPC,
+        icon: 'favicon.png'
+    };
 
-// 通知クリック時のコールバック
-if (window.electronAPI) {
-    window.electronAPI.onNotificationClicked(() => {
-        const keepNotification = document.getElementById('requireInteractionInput') ? document.getElementById('requireInteractionInput').checked : false;
-        if (keepNotification) {
+    const n = new Notification(title, options);
+
+    n.onclick = () => {
+        // ウィンドウを前面に出す (Main プロセスの処理を呼ぶ)
+        if (window.electronAPI && window.electronAPI.focusWindow) {
+            window.electronAPI.focusWindow();
+        }
+        
+        // 操作完了処理 (設定がオンの場合)
+        if (shouldRequireInteractionPC) {
             markCompleted();
         }
-    });
+    };
 }
+
+// 古いメインプロセス用コールバックは削除
 
 function sendTestNotification() {
     showNotification(remindTitle, remindBody + " (テスト)", 'test');

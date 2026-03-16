@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     hideWindow: () => {
         ipcRenderer.send('hide-window');
     },
+    focusWindow: () => {
+        ipcRenderer.send('focus-window');
+    },
     onWindowReady: (callback) => {
         ipcRenderer.on('window-ready', () => callback());
     }
