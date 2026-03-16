@@ -1847,13 +1847,26 @@
 
                 // 通知タップ時に自動で次のスケジュールを再予約する（原因⑧対策）
                 const LocalNotifications = getLocalNotifications();
+                const App = getApp();
+
                 if (LocalNotifications) {
                     LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
                         console.log('Native notification tapped, rescheduling...', notification);
-                        // タップされたIDがスケジュール通知(1~200)の場合のみ再スケジュール
                         const id = notification?.notification?.id;
                         if (typeof id === 'number' && id >= 1 && id <= 200) {
                             recalculateNextNotificationTime();
+                        }
+                    });
+
+                    // 起動時に既存の通知をクリア
+                    LocalNotifications.removeAllDeliveredNotifications().catch(e => console.error(e));
+                }
+
+                // 復帰時（バックグラウンドから戻った時）に通知をクリア
+                if (App) {
+                    App.addListener('appStateChange', ({ isActive }) => {
+                        if (isActive && LocalNotifications) {
+                            LocalNotifications.removeAllDeliveredNotifications().catch(e => console.error(e));
                         }
                     });
                 }
@@ -2394,6 +2407,7 @@
                                 title: remindTitle,
                                 body: remindBody,
                                 id: id,
+                                group: 'cafetouch_service',
                                 schedule: { at: item.time, allowWhileIdle: true, exact: true }
                             });
                         }
@@ -2403,6 +2417,7 @@
                             title: remindTitle,
                             body: remindBody,
                             id: id,
+                            group: 'cafetouch_service',
                             schedule: { at: item.time, allowWhileIdle: true }
                         });
                     }
