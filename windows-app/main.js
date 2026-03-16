@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, Notification, nativeImage } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 // パッケージ版（ビルド後）の場合、.exeと同じフォルダ内の「UserData」フォルダに設定等を保存する
 if (app.isPackaged) {
@@ -11,12 +12,39 @@ let tray = null;
 let isQuitting = false;
 let shouldCloseToTray = false; // デフォルトはオフ
 
+const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
+
+function loadWindowState() {
+  try {
+    if (fs.existsSync(windowStatePath)) {
+      return JSON.parse(fs.readFileSync(windowStatePath, 'utf8'));
+    }
+  } catch (e) {
+    console.error('Failed to load window state:', e);
+  }
+  return { width: 680, height: 920 };
+}
+
+function saveWindowState() {
+  if (!mainWindow) return;
+  const bounds = mainWindow.getBounds();
+  try {
+    fs.writeFileSync(windowStatePath, JSON.stringify(bounds));
+  } catch (e) {
+    console.error('Failed to save window state:', e);
+  }
+}
+
 function createWindow() {
+  const state = loadWindowState();
+
   mainWindow = new BrowserWindow({
-    width: 680,
-    height: 920,
+    x: state.x,
+    y: state.y,
+    width: state.width,
+    height: state.height,
     minWidth: 400,
-    minHeight: 600,
+    minHeight: 300, // 600 から 300 に短縮
     icon: path.join(__dirname, 'favicon.png'),
     titleBarStyle: 'hidden',
     titleBarOverlay: {
@@ -39,6 +67,10 @@ function createWindow() {
     // レンダラーにメインウィンドウの準備ができたことを知らせ、初期設定（startMinimizedなど）を適用させる
     mainWindow.webContents.send('window-ready');
   });
+
+  // ウィンドウが移動またはリサイズされたら保存
+  mainWindow.on('resize', saveWindowState);
+  mainWindow.on('move', saveWindowState);
 
   // × ボタンでの挙動制御
   mainWindow.on('close', (event) => {
