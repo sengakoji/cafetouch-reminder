@@ -133,8 +133,15 @@ if (!gotTheLock) {
 
 // === IPC Handlers ===
 
+let activeNotification = null;
+
 // 通知の表示
 ipcMain.on('show-notification', (event, { title, body, silent, requireInteraction, preventFocus }) => {
+  // すでに通知が表示されている場合は閉じる（累積防止）
+  if (activeNotification) {
+    activeNotification.close();
+  }
+
   const options = {
     title: title,
     body: body,
@@ -147,9 +154,9 @@ ipcMain.on('show-notification', (event, { title, body, silent, requireInteractio
     options.timeoutType = 'never';
   }
 
-  const notification = new Notification(options);
+  activeNotification = new Notification(options);
 
-  notification.on('click', () => {
+  activeNotification.on('click', () => {
     event.reply('notification-clicked');
     if (mainWindow && !preventFocus) {
       if (!mainWindow.isVisible()) mainWindow.show();
@@ -158,7 +165,12 @@ ipcMain.on('show-notification', (event, { title, body, silent, requireInteractio
     }
   });
 
-  notification.show();
+  // 通知が閉じられたときに参照をクリア
+  activeNotification.on('close', () => {
+    activeNotification = null;
+  });
+
+  activeNotification.show();
 });
 
 // タイトルの更新
