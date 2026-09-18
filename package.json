@@ -4,7 +4,7 @@
   "description": "<img src=\"screenshot.jpg\" width=\"50%\">",
   "main": "sw.js",
   "scripts": {
-    "test": "node --test tests/web-push-regression.test.js",
+    "test": "node --test tests/*.test.js",
     "test:e2e": "playwright test",
     "cap-build": "npx esbuild cap-entry.js --bundle --outfile=cap-bundle.js --minify",
     "build": "npm run cap-build && pwsh -Command \"New-Item -ItemType Directory -Force -Path www; Copy-Item index.html, sw.js, cap-bundle.js, site.webmanifest, *.png, favicon.ico, favicon.svg -Destination www -Force\"",

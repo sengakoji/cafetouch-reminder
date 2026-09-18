@@ -2684,6 +2684,23 @@
 
         function updateTimerLogic(forceUpdate = false) {
             const now = new Date();
+
+            // PCブラウザの遅延待機中は、現在届けられる固定時刻だけを新しい通知対象にする。
+            if (isDelayedNotification && !isMobile && !isStandalone && !window.isNativePlatform &&
+                !isDelayedBySleepTime && nextNotificationTime && fixedTimes.length > 0) {
+                const delayThreshold = 60000;
+                const fixedTime = getNextFixedTime(new Date(now.getTime() - delayThreshold - 1));
+                if (fixedTime && fixedTime > nextNotificationTime &&
+                    (!lastNotifiedTime || fixedTime.getTime() !== lastNotifiedTime.getTime()) &&
+                    now >= fixedTime.getTime() - notificationAdvanceSeconds * 1000 &&
+                    now <= fixedTime.getTime() + delayThreshold &&
+                    !(sleepTimeEnabled && sleepTimeStart && sleepTimeEnd && sleepTimeStart !== sleepTimeEnd &&
+                        applySleepTime(fixedTime).isInside)) {
+                    nextNotificationTime = fixedTime;
+                    lastScheduledSource = 'fixed';
+                }
+            }
+
             const lastTouchText = lastCompletedTime ? formatTime(lastCompletedTime) : '00:00:00';
             const nextTouchText = nextNotificationTime ? formatTime(nextNotificationTime) : '00:00:00';
 
