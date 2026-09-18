@@ -39,3 +39,8 @@ windows-app/builder-*.y*ml
 windows-app/*.exe
 windows-app/*.zip
 windows-app/*.blockmap
+
+# Playwright reports and temporary debug files
+playwright-report/
+test-results/
+tmp_*
