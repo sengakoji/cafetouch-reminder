@@ -1397,6 +1397,17 @@
         // --- Web Push Settings ---
         const VAPID_PUBLIC_KEY = 'BDhsA4_i9Dd6zh0p0QoGCL-tyXG1rTbmqz_1-l3KE0qtViJ01pS25EDZeaBGn0jnDR2YLTezFHX8qFcEPBNI4Lg';
         const WORKER_URL = 'https://cafe-push-worker.laid-tiles.workers.dev'; // デプロイ済みのWorker URL
+        const MAX_WORKER_DELAY_SECONDS = 86400;
+
+        async function requestWorker(path, options) {
+            const response = await fetch(`${WORKER_URL}${path}`, options);
+            if (!response.ok) {
+                const errorText = await response.text();
+                const detail = errorText.trim() || response.statusText || 'HTTP error';
+                throw new Error(`Worker ${path} failed (${response.status}): ${detail}`);
+            }
+            return response;
+        }
 
         function urlBase64ToUint8Array(base64String) {
             const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -1446,6 +1457,16 @@
             }
         });
 
+        function getNextWorkerAutoUpdateDelay(targetDate, nowMilliseconds) {
+            if (!autoUpdateNext) return null;
+
+            const completionTime = new Date(targetDate.getTime() + actionTimeSeconds * 1000);
+            const cooldownEnd = new Date(completionTime.getTime() + cooldownMinutes * 60 * 1000);
+            const nextFixed = getNextFixedTime(completionTime);
+            const nextTarget = nextFixed && nextFixed < cooldownEnd ? nextFixed : cooldownEnd;
+            return Math.floor((nextTarget.getTime() - nowMilliseconds) / 1000) - notificationAdvanceSeconds;
+        }
+
         async function syncScheduleToWorker(targetDate) {
             if (!targetDate) return;
             const now = new Date().getTime();
@@ -1462,8 +1483,34 @@
 
             const settings = getNotificationSettings();
 
+            // 自動チェーンの次回遅延も事前に検証し、Worker側でチェーンが途切れる状態を登録しない。
+            if (!window.isNativePlatform) {
+                const nextAutoUpdateDelay = getNextWorkerAutoUpdateDelay(targetDate, now);
+                if (nextAutoUpdateDelay !== null && (
+                    !Number.isFinite(nextAutoUpdateDelay) ||
+                    nextAutoUpdateDelay < 0 ||
+                    nextAutoUpdateDelay > MAX_WORKER_DELAY_SECONDS
+                )) {
+                    const error = new Error(
+                        `Worker auto-update delaySeconds must be between 0 and ${MAX_WORKER_DELAY_SECONDS} seconds`,
+                    );
+                    console.error('Worker Sync Failed:', error);
+                    alert(`自動更新の通知スケジュールを登録できません。${error.message}`);
+                    return;
+                }
+            }
+
+            if (!Number.isFinite(delaySeconds) || delaySeconds < 0 || delaySeconds > MAX_WORKER_DELAY_SECONDS) {
+                const error = new Error(
+                    `Worker /schedule delaySeconds must be between 0 and ${MAX_WORKER_DELAY_SECONDS} seconds`,
+                );
+                console.error('Worker Sync Failed:', error);
+                alert(`通知スケジュールを登録できません。${error.message}`);
+                return;
+            }
+
             try {
-                await fetch(`${WORKER_URL}/schedule`, {
+                await requestWorker('/schedule', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2504,7 +2551,7 @@
                 if (subStr) {
                     try {
                         const subscription = JSON.parse(subStr);
-                        await fetch(`${WORKER_URL}/stop`, {
+                        await requestWorker('/stop', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ subscription })
@@ -2529,9 +2576,53 @@
             updateTimerLogic(true);
         }
 
+        const JAPAN_TIMEZONE_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+        function createJapanFixedTime(fromTime, timeString, dayOffset = 0) {
+            const from = new Date(fromTime);
+            const [hours, minutes] = String(timeString).split(':').map(Number);
+            if (
+                !Number.isInteger(hours) ||
+                !Number.isInteger(minutes) ||
+                hours < 0 ||
+                hours > 23 ||
+                minutes < 0 ||
+                minutes > 59
+            ) {
+                return null;
+            }
+
+            const japanDate = new Date(from.getTime() + JAPAN_TIMEZONE_OFFSET_MS);
+            const utcMilliseconds = Date.UTC(
+                japanDate.getUTCFullYear(),
+                japanDate.getUTCMonth(),
+                japanDate.getUTCDate() + dayOffset,
+                hours,
+                minutes,
+                0,
+                0,
+            );
+            return new Date(utcMilliseconds - JAPAN_TIMEZONE_OFFSET_MS);
+        }
+
         function getNextFixedTime(fromTime) {
             if (fixedTimes.length === 0) return null;
             const from = new Date(fromTime);
+
+            // PWA / モバイルブラウザの固定時刻は、端末の表示タイムゾーンではなくJSTで解釈する。
+            if (isMobile && !window.isNativePlatform) {
+                let nextTime = null;
+                for (const timeStr of fixedTimes) {
+                    const todayCandidate = createJapanFixedTime(from, timeStr);
+                    if (!todayCandidate) continue;
+                    const candidate = todayCandidate > from
+                        ? todayCandidate
+                        : createJapanFixedTime(from, timeStr, 1);
+                    if (candidate && (!nextTime || candidate < nextTime)) nextTime = candidate;
+                }
+                return nextTime;
+            }
+
             const today = new Date(from.getFullYear(), from.getMonth(), from.getDate());
             let nextTime = null;
             for (const timeStr of fixedTimes) {
@@ -2555,6 +2646,19 @@
         function getPreviousFixedTime(fromTime) {
             if (fixedTimes.length === 0) return null;
             const from = new Date(fromTime);
+
+            if (isMobile && !window.isNativePlatform) {
+                let previousTime = null;
+                for (const timeStr of fixedTimes) {
+                    const candidate = createJapanFixedTime(from, timeStr);
+                    if (candidate && candidate < from && (!previousTime || candidate > previousTime)) {
+                        previousTime = candidate;
+                    }
+                }
+                if (previousTime) return previousTime;
+                return createJapanFixedTime(from, fixedTimes[fixedTimes.length - 1], -1);
+            }
+
             const today = new Date(from.getFullYear(), from.getMonth(), from.getDate());
             let prevTime = null;
 
@@ -3062,6 +3166,7 @@
                         return;
                     } else {
                         const errText = await resp.text();
+                        console.error('Push Test Failed:', `Worker returned ${resp.status}: ${errText}`);
                         alert(`【診断】Worker がエラーを返しました (${resp.status}):\n\n${errText.substring(0, 300)}`);
                         return;
                     }

@@ -1,8 +1,13 @@
-// ======================================================================
 // Cafe Push Worker - Cloudflare Workers ネイティブ実装
 // web-push NPM パッケージは Node.js 固有 API に依存するため使用せず、
 // Web Crypto API + fetch() のみで Web Push (RFC 8291/8292) を実装する。
 // ======================================================================
+
+import {
+  MAX_QUEUE_DELAY_SECONDS,
+  calculateNextAutoUpdate,
+  isValidQueueDelaySeconds,
+} from './scheduling.mjs';
 
 // --- CORS ヘッダー ---
 // ⚠️ セキュリティ向上のため、本番環境では "*" をフロントエンドのドメインに変更してください
@@ -23,31 +28,6 @@ async function getSubscriptionId(subscription) {
   const data = encoder.encode(subscription.endpoint);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   return bufferToBase64url(hashBuffer);
-}
-
-/** フロントエンドのロジックを移植：次の通知時刻を計算 */
-function getNextTargetDate(now, fixedTimes, cooldownMinutes) {
-  const today = new Date(now);
-  today.setSeconds(0, 0);
-  const candidates = [];
-
-  // 固定時刻のリセット時間を候補に追加
-  for (const timeStr of fixedTimes) {
-    const [h, m] = timeStr.split(':').map(Number);
-    const d = new Date(today);
-    d.setHours(h, m, 0, 0);
-    // 既に過ぎている場合は翌日に
-    if (d <= now) d.setDate(d.getDate() + 1);
-    candidates.push(d);
-  }
-
-  // クールタイム経過後を候補に追加
-  const cooldownDate = new Date(now.getTime() + cooldownMinutes * 60 * 1000);
-  candidates.push(cooldownDate);
-
-  // 最も早い時刻を返す
-  candidates.sort((a, b) => a - b);
-  return candidates[0];
 }
 
 /** Base64URL をデコードして ArrayBuffer に変換 */
@@ -332,10 +312,27 @@ export default {
     if (request.method === "POST" && url.pathname === "/schedule") {
       try {
         const body = await request.json();
-        const { subscription, payload, delaySeconds, autoUpdate, cooldownMinutes, actionTimeSeconds, fixedTimes } = body;
+        const {
+          subscription,
+          payload,
+          delaySeconds,
+          autoUpdate,
+          cooldownMinutes,
+          actionTimeSeconds,
+          advanceSeconds,
+          fixedTimes,
+          sleepTimeEnabled,
+          sleepTimeStart,
+          sleepTimeEnd,
+          sleepTimeNotifyOnEnd,
+          sleepTimeAutoUpdate,
+        } = body;
 
-        if (!subscription || !payload || typeof delaySeconds !== 'number') {
-          return new Response("Invalid request body", { status: 400, headers: corsHeaders });
+        if (!subscription || !payload || !isValidQueueDelaySeconds(delaySeconds)) {
+          return new Response(
+            `Invalid request body: delaySeconds must be a finite number between 0 and ${MAX_QUEUE_DELAY_SECONDS} seconds`,
+            { status: 400, headers: corsHeaders },
+          );
         }
 
         const subId = await getSubscriptionId(subscription);
@@ -345,8 +342,22 @@ export default {
         await env.PUSH_STATUS.put(`state_${subId}`, JSON.stringify({ isStopped: false, activeScheduleId: scheduleId }), { expirationTtl: 86400 * 30 }); // 30日間維持
 
         await env.PUSH_QUEUE.send(
-          { subscription, payload, autoUpdate, cooldownMinutes, actionTimeSeconds, fixedTimes, scheduleId },
-          { delaySeconds: Math.max(0, delaySeconds) }
+          {
+            subscription,
+            payload,
+            autoUpdate,
+            cooldownMinutes,
+            actionTimeSeconds,
+            advanceSeconds,
+            fixedTimes,
+            scheduleId,
+            sleepTimeEnabled,
+            sleepTimeStart,
+            sleepTimeEnd,
+            sleepTimeNotifyOnEnd,
+            sleepTimeAutoUpdate,
+          },
+          { delaySeconds }
         );
 
         return new Response(JSON.stringify({ success: true, message: "Scheduled successfully" }), {
@@ -421,17 +432,29 @@ export default {
         );
 
         // 自動次回登録: 通知送信後、次のスケジュールを Queue に投入
-        if (autoUpdate && cooldownMinutes && typeof actionTimeSeconds === 'number' && fixedTimes) {
+        if (
+          autoUpdate &&
+          Number.isFinite(cooldownMinutes) &&
+          cooldownMinutes > 0 &&
+          Number.isFinite(actionTimeSeconds) &&
+          actionTimeSeconds >= 0 &&
+          Array.isArray(fixedTimes)
+        ) {
           // 現在時刻（通知が送られた直後）
           const now = new Date();
 
-          // ★ドリフト防止: advanceSecondsぶんだけ通知が早く届いた場合、
-          // 「本来の通知予定時刻 = now + advanceSeconds」を基準として次を計算する
-          const advanceSeconds = typeof message.body.advanceSeconds === 'number' ? message.body.advanceSeconds : 0;
-          const idealNow = new Date(now.getTime() + advanceSeconds * 1000);
-
-          // リセット時刻を考慮した次のターゲット時刻を計算（idealNowを基準にする）
-          let nextDate = getNextTargetDate(idealNow, fixedTimes, cooldownMinutes);
+          // 通知が前倒しされている場合でも、本来の通知予定時刻を操作開始時刻とする
+          const advanceSeconds = Number.isFinite(message.body.advanceSeconds) && message.body.advanceSeconds >= 0
+            ? message.body.advanceSeconds
+            : 0;
+          const nextCalculation = calculateNextAutoUpdate({
+            now,
+            actionTimeSeconds,
+            advanceSeconds,
+            cooldownMinutes,
+            fixedTimes,
+          });
+          let nextDate = nextCalculation.nextTargetTime;
 
           // --- おやすみタイム（通知保留）の判定と処理 ---
           const { sleepTimeEnabled, sleepTimeStart, sleepTimeEnd, sleepTimeNotifyOnEnd, sleepTimeAutoUpdate } = message.body;
@@ -498,8 +521,15 @@ export default {
             }
           }
 
-          // 操作時間を加味した遅延秒数、前倒し分を差し引く
-          const nextDelaySeconds = Math.floor((nextDate.getTime() - now.getTime()) / 1000) + actionTimeSeconds - advanceSeconds;
+          // ターゲット選択後にだけ前倒し分を差し引く。固定時刻そのものには加算しない。
+          const nextDelaySeconds = Math.floor((nextDate.getTime() - now.getTime()) / 1000) - advanceSeconds;
+          if (!isValidQueueDelaySeconds(nextDelaySeconds)) {
+            console.error(
+              `[Queue] Auto-update delay is outside the supported range: ${nextDelaySeconds}s (max ${MAX_QUEUE_DELAY_SECONDS}s)`,
+            );
+            message.ack();
+            continue;
+          }
 
           // 新しいスケジュールIDを生成して更新（これ以降、既存の別スレッドのQueueはすべて破棄される）
           const nextScheduleId = Date.now().toString();
@@ -518,7 +548,7 @@ export default {
               // 引き続きおやすみ設定を次へリレーする
               sleepTimeEnabled, sleepTimeStart, sleepTimeEnd, sleepTimeNotifyOnEnd, sleepTimeAutoUpdate
             },
-            { delaySeconds: Math.max(0, nextDelaySeconds) }
+            { delaySeconds: nextDelaySeconds }
           );
           console.log(`Auto-update: next notification scheduled at ${nextDate.toISOString()} (Delay: ${nextDelaySeconds}s, advance: ${advanceSeconds}s)`);
         }
